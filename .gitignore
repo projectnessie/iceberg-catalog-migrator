@@ -1,0 +1,68 @@
+
+### Java ###
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+hs_err_pid*
+
+#misc
+target/
+dependency-reduced-pom.xml
+*.patch
+*.DS_Store
+.DS_Store
+
+#intellij
+*.iml
+.idea
+*.ipr
+*.iws
+
+# vscode
+.vscode
+
+# node
+node_modules/
+ui/src/generated/
+
+# Eclipse IDE
+.classpath
+.factorypath
+.project
+.settings
+.checkstyle
+out/
+
+# gradle
+.gradle/
+build/
+gradle/wrapper/gradle-wrapper.jar
+version.txt
+
+# Python venv
+venv/
+
+# Maven flatten plugin
+.flattened-pom.xml
+
+# Site
+site/site
