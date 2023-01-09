@@ -13,3 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+plugins {
+  `java-library`
+  `maven-publish`
+}
+
+repositories {
+  mavenCentral()
+}
+
+group = "org.projectnessie"
+
+version = file("version.txt").readText().trim()
+
+description = "catalog-migration-tool"
+
+java.sourceCompatibility = JavaVersion.VERSION_1_8
