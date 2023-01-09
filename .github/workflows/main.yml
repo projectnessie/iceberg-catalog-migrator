@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  java:
+    name: Java/Gradle
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 4
+      matrix:
+        java-version: [11]
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+
+      # Special handling to test against Java 8:
+      # antlr version 4.10 requires Java 11 to run the antlr tool, but tests still need to run
+      # against Java 8 - that's being done here:
+      - name: Set up Java 8
+        if: ${{ matrix.java-version == '11' }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: 8
+      - name: Configure env with Java 8 home
+        if: ${{ matrix.java-version == '11' }}
+        run:
+          echo "JAVA_8_HOME=$JAVA_HOME" >> $GITHUB_ENV
+      - name: Enable Java 8 tests
+        if: ${{ matrix.java-version == '11' }}
+        run:
+          echo "ADDITIONAL_GRADLE_OPTS=-PalsoTestAgainstJava8" >> $GITHUB_ENV
+      - name: Configure Java 8 home for Gradle
+        if: ${{ matrix.java-version == '11' }}
+        run: |
+          mkdir -p $HOME/.gradle
+          echo "org.gradle.java.installations.fromEnv=JAVA_8_HOME" >> $HOME/.gradle/gradle.properties
+
+      - name: Set up JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: ${{ matrix.java-version }}
+
+      - name: Spotless Check
+        uses: gradle/gradle-build-action@v2
+        with:
+          # Spotless must run in a different invocation, because
+          # it has some weird Gradle configuration/variant issue
+          arguments: spotlessCheck --scan
+
+      - name: Build with Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: --rerun-tasks assemble ${{ env.ADDITIONAL_GRADLE_OPTS }} check publishToMavenLocal -x jmh -x spotlessCheck --scan
+
+      - name: Build tool integrations
+        # The buildToolIntegration* tasks require publishToMavenLocal, run it as a separate step,
+        # because these tasks intentionally do not depend on the publishToMavenLocal tasks.
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: buildToolIntegrations
+
+      - name: Microbenchmarks
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: jmh
+
+      - name: Cache Bazel stuff
+        if: ${{ matrix.java-version == '11' }}
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/bazel
+          key: bazel-${{ hashFiles('**/.gitmodules') }}
+          restore-keys: bazel-
+
+      - name: Setup bazel
+        if: ${{ matrix.java-version == '11' }}
+        uses: jwlawson/actions-setup-bazel@v1.10.0
+        with:
+          bazel-version: '3.5.1'
+
+      - uses: codecov/codecov-action@v3
+        if: ${{ matrix.java-version == '11' }}
+        with:
+          files: jacoco/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
+          flags: java
+
+      - name: Capture test results
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: test-results
+          path: |
+            **/build/reports/*
+            **/build/test-results/*
