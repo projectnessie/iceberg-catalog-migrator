@@ -1,7 +1,7 @@
 # catalog-migrator
 A CLI tool to bulk migrate Iceberg tables from one catalog to another without a data copy.
 
-Need to have java installed in your machine(JDK8 or later version) to use this CLI tool.
+Need to have java installed in your machine(JDK11 or later version) to use this CLI tool.
 
 Below is the CLI syntax:
 ```

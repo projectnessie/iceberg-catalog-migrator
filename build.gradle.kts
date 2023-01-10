@@ -25,21 +25,26 @@ plugins {
   Utilities
 }
 
-repositories { mavenCentral() }
+repositories {
+  if (System.getProperty("withMavenLocal").toBoolean()) {
+    mavenLocal()
+  }
+  mavenCentral()
+}
 
 applyShadowJar()
 
 dependencies {
-  api("com.google.guava:guava:31.1-jre")
-  api("org.slf4j:log4j-over-slf4j:1.7.36")
-  api("ch.qos.logback:logback-classic:1.2.11")
-  api("ch.qos.logback:logback-core:1.2.11")
-  api("info.picocli:picocli:4.7.0")
-  api("org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.1.0")
-  api("org.apache.iceberg:iceberg-dell:1.1.0")
-  api("org.apache.hadoop:hadoop-common:3.2.4")
-  api("org.apache.hadoop:hadoop-aws:3.2.4")
-  api("com.amazonaws:aws-java-sdk:1.7.4")
+  api(libs.guava)
+  api(libs.slf4j)
+  api(libs.picocli)
+  api(libs.logback.classic)
+  api(libs.logback.core)
+  api(libs.iceberg.spark.runtime)
+  api(libs.iceberg.dell)
+  api(libs.hadoop.aws)
+  api(libs.hadoop.common)
+  api(libs.aws.sdk)
 
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)

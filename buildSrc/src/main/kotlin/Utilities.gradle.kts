@@ -24,22 +24,13 @@ import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.api.tasks.testing.Test
 import org.gradle.external.javadoc.CoreJavadocOptions
 import org.gradle.kotlin.dsl.configure
-import org.gradle.kotlin.dsl.named
 import org.gradle.kotlin.dsl.repositories
 import org.gradle.kotlin.dsl.withType
 
-plugins {
-  id("org.projectnessie.buildsupport.jacoco")
-  id("org.projectnessie.buildsupport.spotless")
-}
-
-// TODO: enable this when support for publishing jars to nexus repo is added.
-// if (project.name != "jacoco") {
-//  apply<PublishingHelperPlugin>()
-// }
+plugins { id("org.projectnessie.buildsupport.spotless") }
 
 repositories {
-  mavenCentral { content { excludeVersionByRegex("io[.]delta", ".*", ".*-nessie") } }
+  mavenCentral()
   if (System.getProperty("withMavenLocal").toBoolean()) {
     mavenLocal()
   }
@@ -50,33 +41,11 @@ if (project.projectDir.resolve("src/test/java").exists()) {
     useJUnitPlatform {}
     maxParallelForks = Runtime.getRuntime().availableProcessors()
   }
-
-  if (project.hasProperty("alsoTestAgainstJava8")) {
-    val javaToolchains = extensions.findByType(JavaToolchainService::class.java)
-    if (javaToolchains != null) {
-      val testWithJava8 =
-        tasks.register<Test>("testWithJava8") {
-          group = "verification"
-          description = "Run unit tests against Java 8"
-
-          dependsOn("test")
-
-          dependsOn
-
-          useJUnitPlatform {}
-          maxParallelForks = Runtime.getRuntime().availableProcessors()
-          javaLauncher.set(
-            javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(8)) }
-          )
-        }
-      tasks.named("check") { dependsOn(testWithJava8) }
-    }
-  }
 }
 
 tasks.withType<Jar>().configureEach {
   manifest {
-    attributes["Implementation-Title"] = "catalog-migration-tool"
+    attributes["Implementation-Title"] = "iceberg-catalog-migrator"
     attributes["Implementation-Version"] = project.version
   }
 }

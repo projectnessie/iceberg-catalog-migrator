@@ -30,10 +30,6 @@ dependencies {
   implementation("com.diffplug.spotless:spotless-plugin-gradle:${ver.spotlessPlugin.get()}")
   implementation("gradle.plugin.com.github.johnrengelman:shadow:${ver.shadowPlugin.get()}")
   val nessieVer = ver.nessieBuildPlugins.get()
-  implementation("org.projectnessie.buildsupport:ide-integration:$nessieVer")
-  implementation("org.projectnessie.buildsupport:jacoco:$nessieVer")
-  implementation("org.projectnessie.buildsupport:publishing:$nessieVer")
-  implementation("org.projectnessie.buildsupport:reflection-config:$nessieVer")
   implementation("org.projectnessie.buildsupport:spotless:$nessieVer")
 }
 
