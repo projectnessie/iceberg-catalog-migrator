@@ -72,3 +72,6 @@ site/site
 
 # Ignore Gradle build output directory
 build
+
+# test output
+failed_identifiers.txt
