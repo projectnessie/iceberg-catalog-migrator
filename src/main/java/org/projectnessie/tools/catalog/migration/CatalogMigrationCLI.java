@@ -75,15 +75,15 @@ public class CatalogMigrationCLI implements Callable<Integer> {
       names = {"-I", "--identifiers"},
       split = ",",
       description =
-          "optional selective list of identifiers to register. If not specified, all the tables will be registered."
-              + "Use this when there are few identifiers needs to be registered. For large number of identifiers, use "
-              + "`--identifiers-from-file` option.")
+          "optional selective list of identifiers to register. If not specified, all the tables will be registered. "
+              + "Use this when there are few identifiers that need to be registered. For a large number of identifiers, "
+              + "use the `--identifiers-from-file` option.")
   List<String> identifiers = new ArrayList<>();
 
   @CommandLine.Option(
       names = {"--identifiers-from-file"},
       description =
-          "optional text file path that contains list of table identifiers (one per line) to register. Should not be "
+          "optional text file path that contains a list of table identifiers (one per line) to register. Should not be "
               + "used with `--identifiers` option.")
   String identifiersFromFile;
 
@@ -112,7 +112,7 @@ public class CatalogMigrationCLI implements Callable<Integer> {
   @CommandLine.Option(
       names = {"--delete-source-tables"},
       description =
-          "Optional configuration to delete the tables entry from source catalog after successfully registering it "
+          "Optional configuration to delete the table entry from source catalog after successfully registering it "
               + "to target catalog.")
   private boolean deleteSourceCatalogTables;
 

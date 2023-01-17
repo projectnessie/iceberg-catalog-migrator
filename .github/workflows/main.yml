@@ -24,17 +24,10 @@ jobs:
           distribution: 'temurin'
           java-version: ${{ matrix.java-version }}
 
-      - name: Spotless Check
-        uses: gradle/gradle-build-action@v2
-        with:
-          # Spotless must run in a different invocation, because
-          # it has some weird Gradle configuration/variant issue
-          arguments: spotlessCheck
-
       - name: Build with Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: --rerun-tasks assemble ${{ env.ADDITIONAL_GRADLE_OPTS }} check publishToMavenLocal -x spotlessCheck --scan
+          arguments: --rerun-tasks assemble ${{ env.ADDITIONAL_GRADLE_OPTS }} check publishToMavenLocal --scan
 
       - name: Capture test results
         uses: actions/upload-artifact@v3

@@ -49,6 +49,37 @@ dependencies {
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
+  // for integration tests
+  testImplementation(
+    "org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests"
+  )
+  testImplementation("org.apache.hive:hive-metastore:2.3.8") {
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("org.pentaho") // missing dependency
+    exclude("org.apache.hbase")
+    exclude("org.apache.logging.log4j")
+    exclude("co.cask.tephra")
+    exclude("com.google.code.findbugs", "jsr305")
+    exclude("org.eclipse.jetty.aggregate", "jetty-all")
+    exclude("org.eclipse.jetty.orbit", "javax.servlet")
+    exclude("org.apache.parquet", "parquet-hadoop-bundle")
+    exclude("com.tdunning", "json")
+    exclude("javax.transaction", "transaction-api")
+    exclude("com.zaxxer", "HikariCP")
+  }
+  testImplementation("org.apache.hive:hive-exec:2.3.8:core") {
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("org.pentaho") // missing dependency
+    exclude("org.apache.hive", "hive-llap-tez")
+    exclude("org.apache.logging.log4j")
+    exclude("com.google.protobuf", "protobuf-java")
+    exclude("org.apache.calcite")
+    exclude("org.apache.calcite.avatica")
+    exclude("com.google.code.findbugs", "jsr305")
+  }
+  testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
 }
 
 group = "org.projectnessie"
