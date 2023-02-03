@@ -49,6 +49,7 @@ dependencies {
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
+  testImplementation("org.assertj:assertj-core:3.24.2")
   // for integration tests
   testImplementation(
     "org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests"

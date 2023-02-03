@@ -75,3 +75,5 @@ build
 
 # test output
 failed_identifiers.txt
+failed_to_delete_at_source.txt
+dry_run_identifiers.txt

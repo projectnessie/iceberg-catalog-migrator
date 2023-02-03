@@ -17,6 +17,7 @@ package org.projectnessie.tools.catalog.migration;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,9 +33,9 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.hive.HiveMetastoreTest;
 import org.apache.iceberg.types.Types;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
@@ -65,12 +66,12 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     warehousePath1 = catalog.getConf().get("hive.metastore.warehouse.dir");
     warehousePath2 = String.format("file://%s", warehouse2.getAbsolutePath());
 
-    // assign to hive catalog from the parent class
-    catalog1 = catalog;
+    catalog1 = createHadoopCatalog(warehousePath2, "catalog1");
     ((SupportsNamespaces) catalog1).createNamespace(Namespace.of("foo"), Collections.emptyMap());
     ((SupportsNamespaces) catalog1).createNamespace(Namespace.of("bar"), Collections.emptyMap());
 
-    catalog2 = createHadoopCatalog(warehousePath2, "catalog2");
+    // assign to hive catalog from the parent class
+    catalog2 = catalog;
     ((SupportsNamespaces) catalog2).createNamespace(Namespace.of("foo"), Collections.emptyMap());
     ((SupportsNamespaces) catalog2).createNamespace(Namespace.of("bar"), Collections.emptyMap());
   }
@@ -92,6 +93,9 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     // two tables in 'bar' namespace
     catalog1.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl3"), schema);
     catalog1.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl4"), schema);
+
+    // one table in catalog2
+    catalog2.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl5"), schema);
   }
 
   @AfterEach
@@ -115,29 +119,82 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
   @Test
   @Order(0)
   public void testRegister() throws Exception {
+    respondAsContinue();
     RunCLI run =
         RunCLI.run(
-            "HIVE",
-            "warehouse=" + warehousePath1 + ",uri=" + catalog.getConf().get("hive.metastore.uris"),
+            "--source-catalog-type",
             "HADOOP",
-            "warehouse=" + warehousePath2 + ",type=hadoop");
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath2 + ",type=hadoop",
+            "--target-catalog-type",
+            "HIVE",
+            "--target-catalog-properties",
+            "warehouse=" + warehousePath1 + ",uri=" + catalog.getConf().get("hive.metastore.uris"));
 
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "User has not specified the table identifiers. "
-                    + "Selecting all the tables from all the namespaces from the source catalog."));
-    Assertions.assertTrue(run.getOut().contains("Identified 4 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Successfully registered 4 tables from HIVE catalog to"
-                    + " HADOOP catalog."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Details: \n- Successfully registered these tables: \n"
-                    + "[bar.tbl3, bar.tbl4, foo.tbl1, foo.tbl2]"));
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "User has not specified the table identifiers. "
+                + "Selecting all the tables from all the namespaces from the source catalog.");
+    Assertions.assertThat(run.getOut()).contains("Identified 4 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully registered 4 tables from HADOOP catalog to"
+                + " HIVE catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Successfully registered these tables:\n");
+    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl3"),
+            TableIdentifier.parse("bar.tbl4"),
+            TableIdentifier.parse("bar.tbl5"));
+  }
+
+  @Test
+  @Order(1)
+  public void testMigrate() throws Exception {
+    respondAsContinue();
+    RunCLI run =
+        RunCLI.run(
+            "--source-catalog-type",
+            "HIVE",
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath1 + ",uri=" + catalog.getConf().get("hive.metastore.uris"),
+            "--target-catalog-type",
+            "HADOOP",
+            "--target-catalog-properties",
+            "warehouse=" + warehousePath2 + ",type=hadoop",
+            "--delete-source-tables");
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "User has not specified the table identifiers. "
+                + "Selecting all the tables from all the namespaces from the source catalog.");
+    Assertions.assertThat(run.getOut()).contains("Identified 1 tables for migration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully migrated 1 tables from HIVE catalog to"
+                + " HADOOP catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Successfully migrated these tables:\n");
+    // migrated table should be present in the target catalog
+    Assertions.assertThat(catalog1.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl5"),
+            TableIdentifier.parse("bar.tbl4"),
+            TableIdentifier.parse("bar.tbl3"));
+
+    // migrated table should not be there in the source catalog
+    Assertions.assertThat(catalog2.listTables(Namespace.of("bar"))).isEmpty();
+  }
+
+  private void respondAsContinue() {
+    String input = "yes\n";
+    ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
+    System.setIn(in);
   }
 }

@@ -16,7 +16,9 @@
 package org.projectnessie.tools.catalog.migration;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.projectnessie.tools.catalog.migration.CatalogMigrationCLI.FAILED_IDENTIFIERS_FILE;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,8 +35,8 @@ import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.types.Types;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
@@ -78,6 +80,27 @@ public class CLITest {
     // two tables in 'bar' namespace
     catalog1.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl-3"), schema);
     catalog1.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl-4"), schema);
+
+    // to handle the user prompt
+    respondAsContinue();
+  }
+
+  private void respondAsContinue() {
+    String input = "yes\n";
+    ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
+    System.setIn(in);
+  }
+
+  private void respondAsAbort() {
+    String input = "no\n";
+    ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
+    System.setIn(in);
+  }
+
+  private void respondDummy() {
+    String input = "dummy\n";
+    ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
+    System.setIn(in);
   }
 
   @AfterEach
@@ -101,30 +124,26 @@ public class CLITest {
   @Test
   @Order(0)
   public void testRegister() throws Exception {
-    RunCLI run =
-        RunCLI.run(
-            "HADOOP",
-            "warehouse=" + warehousePath1 + ",type=hadoop",
-            "HADOOP",
-            "warehouse=" + warehousePath2 + ",type=hadoop");
+    RunCLI run = runWithDefaultArgs();
 
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "User has not specified the table identifiers. "
-                    + "Selecting all the tables from all the namespaces from the source catalog."));
-    Assertions.assertTrue(run.getOut().contains("Identified 4 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Successfully registered 4 tables from HADOOP catalog to"
-                    + " HADOOP catalog."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Details: \n- Successfully registered these tables: \n"
-                    + "[foo.tbl-1, foo.tbl-2, bar.tbl-4, bar.tbl-3]"));
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "User has not specified the table identifiers. "
+                + "Selecting all the tables from all the namespaces from the source catalog.");
+    Assertions.assertThat(run.getOut()).contains("Identified 4 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully registered 4 tables from HADOOP catalog to"
+                + " HADOOP catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Successfully registered these tables:\n");
+    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl-1"), TableIdentifier.parse("foo.tbl-2"));
+    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl-3"), TableIdentifier.parse("bar.tbl-4"));
   }
 
   @Test
@@ -132,32 +151,37 @@ public class CLITest {
   public void testMigrate() throws Exception {
     RunCLI run =
         RunCLI.run(
+            "--source-catalog-type",
             "HADOOP",
+            "--source-catalog-properties",
             "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
             "HADOOP",
+            "--target-catalog-properties",
             "warehouse=" + warehousePath2 + ",type=hadoop",
             "--delete-source-tables");
 
-    Assertions.assertEquals(0, run.getExitCode());
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     // note that keywords in output is "migrate" instead of "register".
     // If the catalog was not hadoop catalog, tables also should get deleted from the source catalog
     // after migration.
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "User has not specified the table identifiers. "
-                    + "Selecting all the tables from all the namespaces from the source catalog."));
-    Assertions.assertTrue(run.getOut().contains("Identified 4 tables for migration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Successfully migrated 4 tables from HADOOP catalog to"
-                    + " HADOOP catalog."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Details: \n- Successfully migrated these tables: \n"
-                    + "[foo.tbl-1, foo.tbl-2, bar.tbl-4, bar.tbl-3]"));
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "User has not specified the table identifiers. "
+                + "Selecting all the tables from all the namespaces from the source catalog.");
+    Assertions.assertThat(run.getOut()).contains("Identified 4 tables for migration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully migrated 4 tables from HADOOP catalog to"
+                + " HADOOP catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Successfully migrated these tables:\n");
+    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl-1"), TableIdentifier.parse("foo.tbl-2"));
+    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl-3"), TableIdentifier.parse("bar.tbl-4"));
   }
 
   @Test
@@ -166,234 +190,337 @@ public class CLITest {
     // using `--identifiers` option
     RunCLI run =
         RunCLI.run(
+            "--source-catalog-type",
             "HADOOP",
+            "--source-catalog-properties",
             "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
             "HADOOP",
+            "--target-catalog-properties",
             "warehouse=" + warehousePath2 + ",type=hadoop",
             "--identifiers",
             "bar.tbl-3");
 
-    Assertions.assertEquals(0, run.getExitCode());
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut())
+        .doesNotContain(
+            "User has not specified the table identifiers. "
+                + "Selecting all the tables from all the namespaces from the source catalog.");
 
-    Assertions.assertFalse(
-        run.getOut()
-            .contains(
-                "User has not specified the table identifiers. "
-                    + "Selecting all the tables from all the namespaces from the source catalog."));
-
-    Assertions.assertTrue(run.getOut().contains("Identified 1 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Successfully registered 1 tables from HADOOP catalog to"
-                    + " HADOOP catalog."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains("Details: \n- Successfully registered these tables: \n" + "[bar.tbl-3]"));
+    Assertions.assertThat(run.getOut()).contains("Identified 1 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully registered 1 tables from HADOOP catalog to"
+                + " HADOOP catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n- Successfully registered these tables:\n" + "[bar.tbl-3]");
 
     // using `--identifiers-from-file` option
+    respondAsContinue();
     Path identifierFile = Paths.get("ids.txt");
-    Files.write(identifierFile, Collections.singletonList("foo.tbl-2"));
+    Files.write(identifierFile, Collections.singletonList("bar.tbl-4"));
     run =
         RunCLI.run(
+            "--source-catalog-type",
             "HADOOP",
+            "--source-catalog-properties",
             "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
             "HADOOP",
+            "--target-catalog-properties",
             "warehouse=" + warehousePath2 + ",type=hadoop",
             "--identifiers-from-file",
             "ids.txt");
     Files.delete(identifierFile);
 
-    Assertions.assertEquals(0, run.getExitCode());
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut()).contains("Collecting identifiers from the file ids.txt...");
 
-    Assertions.assertTrue(run.getOut().contains("Collecting identifiers from the file ids.txt..."));
+    Assertions.assertThat(run.getOut())
+        .doesNotContain(
+            "User has not specified the table identifiers. "
+                + "Selecting all the tables from all the namespaces from the source catalog.");
 
-    Assertions.assertFalse(
-        run.getOut()
-            .contains(
-                "User has not specified the table identifiers. "
-                    + "Selecting all the tables from all the namespaces from the source catalog."));
+    Assertions.assertThat(run.getOut()).contains("Identified 1 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully registered 1 tables from HADOOP catalog to"
+                + " HADOOP catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n- Successfully registered these tables:\n" + "[bar.tbl-4]");
 
-    Assertions.assertTrue(run.getOut().contains("Identified 1 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Successfully registered 1 tables from HADOOP catalog to"
-                    + " HADOOP catalog."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains("Details: \n- Successfully registered these tables: \n" + "[foo.tbl-2]"));
+    // using --identifiers-regex option which matches all the tables starts with "foo."
+    respondAsContinue();
+    run =
+        RunCLI.run(
+            "--source-catalog-type",
+            "HADOOP",
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
+            "HADOOP",
+            "--target-catalog-properties",
+            "warehouse=" + warehousePath2 + ",type=hadoop",
+            "--identifiers-regex",
+            "^foo\\..*");
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "User has not specified the table identifiers. Selecting all the tables from all the namespaces "
+                + "from the source catalog which matches the regex pattern:^foo\\..*");
+
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Collecting all the tables from all the namespaces of source catalog "
+                + "which matches the regex pattern:^foo\\..*");
+
+    Assertions.assertThat(run.getOut()).contains("Identified 2 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully registered 2 tables from HADOOP catalog to"
+                + " HADOOP catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Successfully registered these tables:\n");
+    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl-1"), TableIdentifier.parse("foo.tbl-2"));
   }
 
   @Test
   @Order(3)
-  public void testRegisterMultiThread() throws Exception {
-    RunCLI run =
-        RunCLI.run(
-            "HADOOP",
-            "warehouse=" + warehousePath1 + ",type=hadoop",
-            "HADOOP",
-            "warehouse=" + warehousePath2 + ",type=hadoop",
-            "-T",
-            "4");
-
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "User has not specified the table identifiers. "
-                    + "Selecting all the tables from all the namespaces from the source catalog."));
-    Assertions.assertTrue(run.getOut().contains("Identified 4 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Successfully registered 4 tables from HADOOP catalog to"
-                    + " HADOOP catalog."));
-  }
-
-  @Test
-  @Order(4)
   public void testRegisterError() throws Exception {
     // use invalid namespace which leads to NoSuchTableException
     RunCLI run =
         RunCLI.run(
+            "--source-catalog-type",
             "HADOOP",
+            "--source-catalog-properties",
             "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
             "HADOOP",
+            "--target-catalog-properties",
             "warehouse=" + warehousePath2 + ",type=hadoop",
-            "-I",
+            "--identifiers",
             "dummy.tbl-3");
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(run.getOut().contains("Identified 1 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Failed to register 1 tables from HADOOP catalog to HADOOP catalog."
-                    + " Please check the `catalog_migration.log`"));
-    Assertions.assertTrue(
-        run.getOut().contains("Details: \n- Failed to register these tables: \n[dummy.tbl-3]"));
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut()).contains("Identified 1 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Failed to register 1 tables from HADOOP catalog to HADOOP catalog."
+                + " Please check the `catalog_migration.log`");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n- Failed to register these tables:\n[dummy.tbl-3]");
 
     // try to register same table twice which leads to AlreadyExistsException
+    respondAsContinue();
     RunCLI.run(
+        "--source-catalog-type",
         "HADOOP",
+        "--source-catalog-properties",
         "warehouse=" + warehousePath1 + ",type=hadoop",
+        "--target-catalog-type",
         "HADOOP",
+        "--target-catalog-properties",
         "warehouse=" + warehousePath2 + ",type=hadoop",
-        "-I",
+        "--identifiers",
         "foo.tbl-2");
+    respondAsContinue();
     run =
         RunCLI.run(
+            "--source-catalog-type",
             "HADOOP",
+            "--source-catalog-properties",
             "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
             "HADOOP",
+            "--target-catalog-properties",
             "warehouse=" + warehousePath2 + ",type=hadoop",
-            "-I",
+            "--identifiers",
             "foo.tbl-2");
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(run.getOut().contains("Identified 1 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Failed to register 1 tables from HADOOP catalog to HADOOP catalog."
-                    + " Please check the `catalog_migration.log`"));
-    Assertions.assertTrue(
-        run.getOut().contains("Details: \n- Failed to register these tables: \n[foo.tbl-2]"));
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut()).contains("Identified 1 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Failed to register 1 tables from HADOOP catalog to HADOOP catalog."
+                + " Please check the `catalog_migration.log`");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n- Failed to register these tables:\n[foo.tbl-2]");
+  }
+
+  @Test
+  @Order(4)
+  public void testRegisterWithFewFailures() throws Exception {
+    // register only foo.tbl-2
+    RunCLI run =
+        RunCLI.run(
+            "--source-catalog-type",
+            "HADOOP",
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
+            "HADOOP",
+            "--target-catalog-properties",
+            "warehouse=" + warehousePath2 + ",type=hadoop",
+            "--identifiers",
+            "foo.tbl-2");
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut()).contains("Identified 1 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n- Successfully registered 1 tables from HADOOP catalog to HADOOP catalog.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Successfully registered these tables:\n" + "[foo.tbl-2]");
+
+    // register all the tables from source catalog again
+    respondAsContinue();
+    run =
+        RunCLI.run(
+            "--source-catalog-type",
+            "HADOOP",
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
+            "HADOOP",
+            "--target-catalog-properties",
+            "warehouse=" + warehousePath2 + ",type=hadoop");
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut()).contains("Identified 4 tables for registration.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n"
+                + "- Successfully registered 3 tables from HADOOP catalog to HADOOP catalog.\n"
+                + "- Failed to register 1 tables from HADOOP catalog to HADOOP catalog. "
+                + "Please check the `catalog_migration.log` file for the failure reason. \n"
+                + "Failed identifiers are written into `failed_identifiers.txt`. "
+                + "Retry with that file using `--identifiers-from-file` option "
+                + "if the failure is because of network/connection timeouts.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Successfully registered these tables:\n");
+    Assertions.assertThat(run.getOut()).contains("- Failed to register these tables:\n[foo.tbl-2]");
+    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl-1"), TableIdentifier.parse("foo.tbl-2"));
+    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl-3"), TableIdentifier.parse("bar.tbl-4"));
+
+    // retry the failed tables using --identifiers-from-file
+    respondAsContinue();
+    run =
+        RunCLI.run(
+            "--source-catalog-type",
+            "HADOOP",
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
+            "HADOOP",
+            "--target-catalog-properties",
+            "warehouse=" + warehousePath2 + ",type=hadoop",
+            "--identifiers-from-file",
+            FAILED_IDENTIFIERS_FILE);
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n"
+                + "- Failed to register 1 tables from HADOOP catalog to HADOOP catalog. "
+                + "Please check the `catalog_migration.log` file for the failure reason. \n"
+                + "Failed identifiers are written into `failed_identifiers.txt`. "
+                + "Retry with that file using `--identifiers-from-file` option "
+                + "if the failure is because of network/connection timeouts.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Failed to register these tables:\n" + "[foo.tbl-2]");
   }
 
   @Test
   @Order(5)
-  public void testRegisterPartialTables() throws Exception {
-    // register only foo.tbl-2
-    RunCLI run =
-        RunCLI.run(
-            "HADOOP",
-            "warehouse=" + warehousePath1 + ",type=hadoop",
-            "HADOOP",
-            "warehouse=" + warehousePath2 + ",type=hadoop",
-            "-I",
-            "foo.tbl-2");
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(run.getOut().contains("Identified 1 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n- Successfully registered 1 tables from HADOOP catalog to HADOOP catalog."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Details: \n" + "- Successfully registered these tables: \n" + "[foo.tbl-2]"));
-
-    // register all the tables from source catalog again
-    run =
-        RunCLI.run(
-            "HADOOP",
-            "warehouse=" + warehousePath1 + ",type=hadoop",
-            "HADOOP",
-            "warehouse=" + warehousePath2 + ",type=hadoop");
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(run.getOut().contains("Identified 4 tables for registration."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n"
-                    + "- Successfully registered 3 tables from HADOOP catalog to HADOOP catalog. \n"
-                    + "- Failed to register 1 tables from HADOOP catalog to HADOOP catalog. "
-                    + "Please check the `catalog_migration.log` file for the failure reason. \n"
-                    + " Failed Identifiers are written to `failed_identifiers.txt`. "
-                    + "Retry with that file using `--identifiers-from-file` option "
-                    + "if the failure is because of network/connection timeouts."));
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Details: \n"
-                    + "- Successfully registered these tables: \n"
-                    + "[foo.tbl-1, bar.tbl-4, bar.tbl-3]\n"
-                    + "- Failed to register these tables: \n"
-                    + "[foo.tbl-2]"));
-
-    // retry the failed tables using --identifiers-from-file
-    run =
-        RunCLI.run(
-            "HADOOP",
-            "warehouse=" + warehousePath1 + ",type=hadoop",
-            "HADOOP",
-            "warehouse=" + warehousePath2 + ",type=hadoop",
-            "--identifiers-from-file",
-            "failed_identifiers.txt");
-    Assertions.assertTrue(
-        run.getOut()
-            .contains(
-                "Summary: \n"
-                    + "- Failed to register 1 tables from HADOOP catalog to HADOOP catalog. "
-                    + "Please check the `catalog_migration.log` file for the failure reason. \n"
-                    + " Failed Identifiers are written to `failed_identifiers.txt`. "
-                    + "Retry with that file using `--identifiers-from-file` option if the failure is because of network/connection timeouts.\n"
-                    + "\n"
-                    + "Details: \n"
-                    + "- Failed to register these tables: \n"
-                    + "[foo.tbl-2]"));
-  }
-
-  @Test
-  @Order(6)
   public void testRegisterNoTables() throws Exception {
     // source catalog is catalog2 which has no tables.
     RunCLI run =
         RunCLI.run(
+            "--source-catalog-type",
             "HADOOP",
+            "--source-catalog-properties",
             "warehouse=" + warehousePath2 + ",type=hadoop",
+            "--target-catalog-type",
             "HADOOP",
+            "--target-catalog-properties",
             "warehouse=" + warehousePath1 + ",type=hadoop");
 
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(run.getOut().contains("Identified 0 tables for registration."));
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut()).contains("Identified 0 tables for registration.");
+  }
+
+  @Test
+  @Order(6)
+  public void testPrompt() throws Exception {
+    respondAsAbort();
+    RunCLI run = runWithDefaultArgs();
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    // should abort
+    Assertions.assertThat(run.getOut()).contains("Aborting...");
+    // should not have other messages
+    Assertions.assertThat(run.getOut()).doesNotContain("Summary");
+
+    respondDummy();
+    run = runWithDefaultArgs();
+    Assertions.assertThat(run.getExitCode()).isEqualTo(1);
+    Assertions.assertThat(run.getOut()).contains("Invalid input. Please enter 'yes' or 'no'.");
+
+    respondAsContinue();
+    run = runWithDefaultArgs();
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    // should abort
+    Assertions.assertThat(run.getOut()).contains("Continuing...");
+    Assertions.assertThat(run.getOut()).contains("Summary");
   }
 
   @Test
   @Order(7)
+  public void testDryRun() throws Exception {
+    RunCLI run =
+        RunCLI.run(
+            "--source-catalog-type",
+            "HADOOP",
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath1 + ",type=hadoop",
+            "--target-catalog-type",
+            "HADOOP",
+            "--target-catalog-properties",
+            "warehouse=" + warehousePath2 + ",type=hadoop",
+            "--dry-run");
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    // should not prompt for dry run
+    Assertions.assertThat(run.getOut())
+        .doesNotContain(
+            "Have you read the above warnings and are you sure you want to continue? (yes/no):");
+    Assertions.assertThat(run.getOut()).contains("Dry run is completed.");
+    Assertions.assertThat(run.getOut())
+        .contains(
+            "Summary: \n"
+                + "- Identified 4 tables for registration by dry-run. "
+                + "These identifiers are also written into dry_run_identifiers.txt. "
+                + "You can use this file with `--identifiers-from-file` option.");
+    Assertions.assertThat(run.getOut())
+        .contains("Details: \n" + "- Identified these tables for registration by dry-run:\n");
+  }
+
+  @Test
+  @Order(9)
   public void version() throws Exception {
     RunCLI run = RunCLI.run("--version");
-    Assertions.assertEquals(0, run.getExitCode());
-    Assertions.assertTrue(run.getOut().startsWith(System.getProperty("expectedCLIVersion")));
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    Assertions.assertThat(run.getOut()).startsWith(System.getProperty("expectedCLIVersion"));
+  }
+
+  private RunCLI runWithDefaultArgs() throws Exception {
+    return RunCLI.run(
+        "--source-catalog-type",
+        "HADOOP",
+        "--source-catalog-properties",
+        "warehouse=" + warehousePath1 + ",type=hadoop",
+        "--target-catalog-type",
+        "HADOOP",
+        "--target-catalog-properties",
+        "warehouse=" + warehousePath2 + ",type=hadoop");
   }
 }

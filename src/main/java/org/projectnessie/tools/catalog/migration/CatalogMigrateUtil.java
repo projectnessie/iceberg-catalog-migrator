@@ -19,24 +19,21 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import org.apache.commons.lang3.tuple.ImmutablePair;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.exceptions.AlreadyExistsException;
-import org.apache.iceberg.exceptions.NoSuchNamespaceException;
-import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
-import org.apache.iceberg.util.Tasks;
-import org.apache.iceberg.util.ThreadPools;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,21 +56,27 @@ public class CatalogMigrateUtil {
    *     migrated. If not specified, all the tables would be migrated
    * @param sourceCatalog Source {@link Catalog} from which the tables are chosen
    * @param targetCatalog Target {@link Catalog} to which the tables need to be migrated
-   * @param maxThreadPoolSize Size of the thread pool used for migrate tables (If set to 0, no
-   *     thread pool is used)
+   * @param identifierRegex regular expression pattern used to migrate only the tables whose
+   *     identifiers match this pattern. Can be provided instead of `tableIdentifiers`.
+   * @param isDryRun to execute as dry run.
    * @param printWriter to print regular updates on the console.
-   * @return Collection of successfully migrated and collection of failed to migrate table
-   *     identifiers.
+   * @return List of successfully migrated and list of failed to migrate table identifiers.
    */
-  public static ImmutablePair<Collection<TableIdentifier>, Collection<TableIdentifier>>
-      migrateTables(
-          List<TableIdentifier> tableIdentifiers,
-          Catalog sourceCatalog,
-          Catalog targetCatalog,
-          int maxThreadPoolSize,
-          PrintWriter printWriter) {
+  public static CatalogMigrationResult migrateTables(
+      List<TableIdentifier> tableIdentifiers,
+      Catalog sourceCatalog,
+      Catalog targetCatalog,
+      String identifierRegex,
+      boolean isDryRun,
+      PrintWriter printWriter) {
     return migrateTables(
-        tableIdentifiers, sourceCatalog, targetCatalog, maxThreadPoolSize, true, printWriter);
+        tableIdentifiers,
+        sourceCatalog,
+        targetCatalog,
+        identifierRegex,
+        isDryRun,
+        true,
+        printWriter);
   }
 
   /**
@@ -89,141 +92,211 @@ public class CatalogMigrateUtil {
    *     registered. If not specified, all the tables would be registered
    * @param sourceCatalog Source {@link Catalog} from which the tables are chosen
    * @param targetCatalog Target {@link Catalog} to which the tables need to be registered
-   * @param maxThreadPoolSize Size of the thread pool used for registering tables (If set to 0, no
-   *     thread pool is used)
+   * @param identifierRegex regular expression pattern used to migrate only the tables whose
+   *     identifiers match this pattern. Can be provided instead of `tableIdentifiers`.
+   * @param isDryRun to execute as dry run.
    * @param printWriter to print regular updates on the console.
-   * @return Collection of successfully migrated and collection of failed to migrate table
-   *     identifiers.
+   * @return List of successfully migrated and list of failed to migrate table identifiers.
    */
-  public static ImmutablePair<Collection<TableIdentifier>, Collection<TableIdentifier>>
-      registerTables(
-          List<TableIdentifier> tableIdentifiers,
-          Catalog sourceCatalog,
-          Catalog targetCatalog,
-          int maxThreadPoolSize,
-          PrintWriter printWriter) {
+  public static CatalogMigrationResult registerTables(
+      List<TableIdentifier> tableIdentifiers,
+      Catalog sourceCatalog,
+      Catalog targetCatalog,
+      String identifierRegex,
+      boolean isDryRun,
+      PrintWriter printWriter) {
     return migrateTables(
-        tableIdentifiers, sourceCatalog, targetCatalog, maxThreadPoolSize, false, printWriter);
+        tableIdentifiers,
+        sourceCatalog,
+        targetCatalog,
+        identifierRegex,
+        isDryRun,
+        false,
+        printWriter);
   }
 
-  private static ImmutablePair<Collection<TableIdentifier>, Collection<TableIdentifier>>
-      migrateTables(
-          List<TableIdentifier> tableIdentifiers,
-          Catalog sourceCatalog,
-          Catalog targetCatalog,
-          int maxThreadPoolSize,
-          boolean deleteEntriesFromSourceCatalog,
-          PrintWriter printWriter) {
-    validate(sourceCatalog, targetCatalog, maxThreadPoolSize);
+  private static CatalogMigrationResult migrateTables(
+      List<TableIdentifier> tableIdentifiers,
+      Catalog sourceCatalog,
+      Catalog targetCatalog,
+      String identifierRegex,
+      boolean isDryRun,
+      boolean deleteEntriesFromSourceCatalog,
+      PrintWriter printWriter) {
+    validate(sourceCatalog, targetCatalog);
 
     String operation = deleteEntriesFromSourceCatalog ? "migration" : "registration";
 
     List<TableIdentifier> identifiers;
     if (tableIdentifiers == null || tableIdentifiers.isEmpty()) {
-      printWriter.println(
-          "\nUser has not specified the table identifiers."
-              + " Selecting all the tables from all the namespaces from the source catalog.");
-
-      printWriter.println("Collecting all the namespaces from source catalog...");
-      // fetch all the table identifiers from all the namespaces.
-      List<Namespace> namespaces =
-          (sourceCatalog instanceof SupportsNamespaces)
-              ? ((SupportsNamespaces) sourceCatalog).listNamespaces()
-              : ImmutableList.of(Namespace.empty());
-      printWriter.println("Collecting all the tables from all the namespaces of source catalog...");
-
-      identifiers = getTableIdentifiers(sourceCatalog, maxThreadPoolSize, namespaces);
+      identifiers = getMatchingTableIdentifiers(sourceCatalog, identifierRegex, printWriter);
     } else {
       identifiers = tableIdentifiers;
     }
 
-    printWriter.printf("\nIdentified %d tables for %s.", identifiers.size(), operation);
+    printWriter.println(
+        String.format("\nIdentified %d tables for %s.", identifiers.size(), operation));
 
-    printWriter.printf("\nStarted %s ...", operation);
-
-    ExecutorService executorService = null;
-    if (maxThreadPoolSize > 0) {
-      executorService = ThreadPools.newWorkerPool("migrate-tables", maxThreadPoolSize);
+    if (isDryRun) {
+      return new CatalogMigrationResult(
+          identifiers, Collections.emptyList(), Collections.emptyList());
     }
-    try {
-      Collection<TableIdentifier> migratedTableIdentifiers = new ConcurrentLinkedQueue<>();
-      Collection<TableIdentifier> failedToMigrateTableIdentifiers = new ConcurrentLinkedQueue<>();
-      Tasks.foreach(identifiers.stream().filter(Objects::nonNull))
-          .retry(3)
-          .stopRetryOn(
-              NoSuchTableException.class,
-              NoSuchNamespaceException.class,
-              AlreadyExistsException.class)
-          .suppressFailureWhenFinished()
-          .executeWith(executorService)
-          .onFailure(
-              (tableIdentifier, exc) -> {
-                failedToMigrateTableIdentifiers.add(tableIdentifier);
-                LOG.warn("Unable to migrate table {}", tableIdentifier, exc);
-              })
-          .run(
-              tableIdentifier -> {
-                migrate(
-                    tableIdentifier, sourceCatalog, targetCatalog, deleteEntriesFromSourceCatalog);
-                migratedTableIdentifiers.add(tableIdentifier);
-                LOG.info("Successfully migrated the table {}", tableIdentifier);
-              });
+    printWriter.println(String.format("\nStarted %s ...", operation));
+    List<TableIdentifier> registeredTableIdentifiers = new ArrayList<>();
+    List<TableIdentifier> failedToRegisterTableIdentifiers = new ArrayList<>();
+    List<TableIdentifier> failedToDeleteTableIdentifiers = new ArrayList<>();
+    AtomicInteger counter = new AtomicInteger();
+    identifiers.forEach(
+        tableIdentifier -> {
+          registerTable(
+              sourceCatalog,
+              targetCatalog,
+              registeredTableIdentifiers,
+              failedToRegisterTableIdentifiers,
+              tableIdentifier);
 
-      printWriter.printf("\nFinished %s ...", operation);
-      return ImmutablePair.of(migratedTableIdentifiers, failedToMigrateTableIdentifiers);
-    } finally {
-      if (executorService != null) {
-        executorService.shutdown();
-      }
+          // HadoopCatalog dropTable will delete the table files completely even when purge is
+          // false.
+          // So, skip dropTable for HadoopCatalog.
+          boolean deleteTableFromSourceCatalog =
+              deleteEntriesFromSourceCatalog && !(sourceCatalog instanceof HadoopCatalog);
+
+          try {
+            if (deleteTableFromSourceCatalog) {
+              boolean failedToDelete = sourceCatalog.dropTable(tableIdentifier, false);
+              if (failedToDelete) {
+                failedToDeleteTableIdentifiers.add(tableIdentifier);
+              }
+            }
+          } catch (Exception exception) {
+            failedToDeleteTableIdentifiers.add(tableIdentifier);
+            LOG.warn("Failed to delete the table after migration {}", tableIdentifier, exception);
+          }
+
+          int count = counter.incrementAndGet();
+          if (count % 100 == 0) {
+            printWriter.println(
+                String.format(
+                    "\nAttempted %s for %d tables out of %d tables.",
+                    operation, count, identifiers.size()));
+          }
+        });
+    printWriter.println(String.format("\nFinished %s ...", operation));
+    return new CatalogMigrationResult(
+        registeredTableIdentifiers,
+        failedToRegisterTableIdentifiers,
+        failedToDeleteTableIdentifiers);
+  }
+
+  private static void registerTable(
+      Catalog sourceCatalog,
+      Catalog targetCatalog,
+      List<TableIdentifier> registeredTableIdentifiers,
+      List<TableIdentifier> failedToMigrateTableIdentifiers,
+      TableIdentifier tableIdentifier) {
+    try {
+      // register the table to the target catalog
+      TableOperations ops = ((BaseTable) sourceCatalog.loadTable(tableIdentifier)).operations();
+      targetCatalog.registerTable(tableIdentifier, ops.current().metadataFileLocation());
+
+      registeredTableIdentifiers.add(tableIdentifier);
+      LOG.info("Successfully migrated the table {}", tableIdentifier);
+    } catch (Exception ex) {
+      failedToMigrateTableIdentifiers.add(tableIdentifier);
+      LOG.warn("Unable to migrate table {}", tableIdentifier, ex);
     }
   }
 
-  private static List<TableIdentifier> getTableIdentifiers(
-      Catalog sourceCatalog, int maxThreadPoolSize, List<Namespace> namespaces) {
-    ExecutorService executorService = null;
-    if (maxThreadPoolSize > 0) {
-      executorService = ThreadPools.newWorkerPool("list-tables", maxThreadPoolSize);
+  @NotNull
+  private static List<TableIdentifier> getMatchingTableIdentifiers(
+      Catalog sourceCatalog, String identifierRegex, PrintWriter printWriter) {
+    if (identifierRegex == null) {
+      printWriter.println(
+          "\nUser has not specified the table identifiers."
+              + " Selecting all the tables from all the namespaces from the source catalog.");
+    } else {
+      printWriter.println(
+          "\nUser has not specified the table identifiers."
+              + " Selecting all the tables from all the namespaces from the source catalog "
+              + "which matches the regex pattern:"
+              + identifierRegex);
     }
 
-    try {
-      Collection<TableIdentifier> allIdentifiers = new ConcurrentLinkedQueue<>();
-      Tasks.foreach(namespaces.stream().filter(Objects::nonNull))
-          .retry(1)
-          .suppressFailureWhenFinished()
-          .executeWith(executorService)
-          .run(namespace -> allIdentifiers.addAll(sourceCatalog.listTables(namespace)));
-      return new ArrayList<>(allIdentifiers);
-    } finally {
-      if (executorService != null) {
-        executorService.shutdown();
-      }
+    printWriter.println("Collecting all the namespaces from source catalog...");
+    // fetch all the table identifiers from all the namespaces.
+    List<Namespace> namespaces =
+        (sourceCatalog instanceof SupportsNamespaces)
+            ? ((SupportsNamespaces) sourceCatalog).listNamespaces()
+            : ImmutableList.of(Namespace.empty());
+    if (identifierRegex == null) {
+      printWriter.println("Collecting all the tables from all the namespaces of source catalog...");
+    } else {
+      printWriter.println(
+          "Collecting all the tables from all the namespaces of source catalog"
+              + " which matches the regex pattern:"
+              + identifierRegex);
     }
+
+    Predicate<TableIdentifier> matchedIdentifiersPredicate;
+    if (identifierRegex != null) {
+      Pattern pattern = Pattern.compile(identifierRegex);
+      matchedIdentifiersPredicate =
+          tableIdentifier -> pattern.matcher(tableIdentifier.toString()).matches();
+    } else {
+      matchedIdentifiersPredicate = tableIdentifier -> true;
+    }
+    return getMatchingTableIdentifiers(sourceCatalog, namespaces, matchedIdentifiersPredicate);
   }
 
-  private static void validate(
-      Catalog sourceCatalog, Catalog targetCatalog, int maxThreadPoolSize) {
-    Preconditions.checkArgument(
-        maxThreadPoolSize >= 0,
-        "maxThreadPoolSize should have value >= 0,  value: " + maxThreadPoolSize);
+  private static List<TableIdentifier> getMatchingTableIdentifiers(
+      Catalog sourceCatalog,
+      List<Namespace> namespaces,
+      Predicate<TableIdentifier> matchedIdentifiersPredicate) {
+    List<TableIdentifier> allIdentifiers = new ArrayList<>();
+    namespaces.stream()
+        .filter(Objects::nonNull)
+        .forEach(
+            namespace -> {
+              List<TableIdentifier> matchedIdentifiers =
+                  sourceCatalog.listTables(namespace).stream()
+                      .filter(matchedIdentifiersPredicate)
+                      .collect(Collectors.toList());
+              allIdentifiers.addAll(matchedIdentifiers);
+            });
+    return allIdentifiers;
+  }
+
+  private static void validate(Catalog sourceCatalog, Catalog targetCatalog) {
     Preconditions.checkArgument(sourceCatalog != null, "Invalid source catalog: null");
     Preconditions.checkArgument(targetCatalog != null, "Invalid target catalog: null");
     Preconditions.checkArgument(
         !targetCatalog.equals(sourceCatalog), "target catalog is same as source catalog");
   }
 
-  private static void migrate(
-      TableIdentifier tableIdentifier,
-      Catalog sourceCatalog,
-      Catalog targetCatalog,
-      boolean deleteEntriesFromSourceCatalog) {
-    // register the table to the target catalog
-    TableOperations ops = ((BaseTable) sourceCatalog.loadTable(tableIdentifier)).operations();
-    targetCatalog.registerTable(tableIdentifier, ops.current().metadataFileLocation());
+  public static class CatalogMigrationResult {
+    private final List<TableIdentifier> registeredTableIdentifiers;
+    private final List<TableIdentifier> failedToRegisterTableIdentifiers;
+    private final List<TableIdentifier> failedToDeleteTableIdentifiers;
 
-    if (deleteEntriesFromSourceCatalog && !(sourceCatalog instanceof HadoopCatalog)) {
-      // HadoopCatalog dropTable will delete the table files completely even when purge is false.
-      // So, skip dropTable for HadoopCatalog.
-      sourceCatalog.dropTable(tableIdentifier, false);
+    CatalogMigrationResult(
+        List<TableIdentifier> registeredTableIdentifiers,
+        List<TableIdentifier> failedToRegisterTableIdentifiers,
+        List<TableIdentifier> failedToDeleteTableIdentifiers) {
+      this.registeredTableIdentifiers = registeredTableIdentifiers;
+      this.failedToRegisterTableIdentifiers = failedToRegisterTableIdentifiers;
+      this.failedToDeleteTableIdentifiers = failedToDeleteTableIdentifiers;
+    }
+
+    public List<TableIdentifier> registeredTableIdentifiers() {
+      return registeredTableIdentifiers;
+    }
+
+    public List<TableIdentifier> failedToRegisterTableIdentifiers() {
+      return failedToRegisterTableIdentifiers;
+    }
+
+    public List<TableIdentifier> failedToDeleteTableIdentifiers() {
+      return failedToDeleteTableIdentifiers;
     }
   }
 }
