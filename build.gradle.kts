@@ -81,6 +81,7 @@ dependencies {
     exclude("com.google.code.findbugs", "jsr305")
   }
   testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
+  testImplementation("org.testcontainers:testcontainers:1.17.6")
 }
 
 group = "org.projectnessie"

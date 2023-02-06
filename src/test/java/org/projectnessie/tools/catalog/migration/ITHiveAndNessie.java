@@ -30,8 +30,8 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.hive.HiveMetastoreTest;
+import org.apache.iceberg.nessie.NessieCatalog;
 import org.apache.iceberg.types.Types;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
@@ -41,8 +41,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.testcontainers.containers.GenericContainer;
 
-public class ITHiveAndHadoop extends HiveMetastoreTest {
+public class ITHiveAndNessie extends HiveMetastoreTest {
 
   private static String warehousePath1;
 
@@ -56,6 +57,13 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
   private static final Schema schema =
       new Schema(Types.StructType.of(required(1, "id", Types.LongType.get())).fields());
 
+  private static final String IMAGE = "projectnessie/nessie:0.47.1";
+  private static final int NESSIE_PORT = 19121;
+
+  private static String nessieUri;
+
+  private static GenericContainer<?> container;
+
   @BeforeAll
   protected static void setup() {
     try {
@@ -66,12 +74,23 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     warehousePath1 = catalog.getConf().get("hive.metastore.warehouse.dir");
     warehousePath2 = String.format("file://%s", warehouse2.getAbsolutePath());
 
-    catalog1 = createHadoopCatalog(warehousePath2, "catalog1");
+    container =
+        new GenericContainer(IMAGE)
+            .withExposedPorts(NESSIE_PORT)
+            .withEnv("QUARKUS_HTTP_PORT", String.valueOf(NESSIE_PORT));
+
+    container.start();
+
+    nessieUri =
+        String.format(
+            "http://%s:%s/api/v1", container.getHost(), container.getMappedPort(NESSIE_PORT));
+
+    // assign to hive catalog from the parent class
+    catalog1 = catalog;
     ((SupportsNamespaces) catalog1).createNamespace(Namespace.of("foo"), Collections.emptyMap());
     ((SupportsNamespaces) catalog1).createNamespace(Namespace.of("bar"), Collections.emptyMap());
 
-    // assign to hive catalog from the parent class
-    catalog2 = catalog;
+    catalog2 = createNessieCatalog(warehousePath2, nessieUri);
     ((SupportsNamespaces) catalog2).createNamespace(Namespace.of("foo"), Collections.emptyMap());
     ((SupportsNamespaces) catalog2).createNamespace(Namespace.of("bar"), Collections.emptyMap());
   }
@@ -83,6 +102,7 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+    container.stop();
   }
 
   @BeforeEach
@@ -108,12 +128,13 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
             });
   }
 
-  private static Catalog createHadoopCatalog(String warehousePath, String name) {
+  private static Catalog createNessieCatalog(String warehousePath, String uri) {
     Map<String, String> properties = new HashMap<>();
     properties.put("warehouse", warehousePath);
-    properties.put("type", "hadoop");
+    properties.put("ref", "main");
+    properties.put("uri", uri);
     return CatalogUtil.loadCatalog(
-        HadoopCatalog.class.getName(), name, properties, new Configuration());
+        NessieCatalog.class.getName(), "nessie", properties, new Configuration());
   }
 
   @Test
@@ -123,13 +144,13 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     RunCLI run =
         RunCLI.run(
             "--source-catalog-type",
-            "HADOOP",
-            "--source-catalog-properties",
-            "warehouse=" + warehousePath2 + ",type=hadoop",
-            "--target-catalog-type",
             "HIVE",
+            "--source-catalog-properties",
+            "warehouse=" + warehousePath1 + ",uri=" + catalog.getConf().get("hive.metastore.uris"),
+            "--target-catalog-type",
+            "NESSIE",
             "--target-catalog-properties",
-            "warehouse=" + warehousePath1 + ",uri=" + catalog.getConf().get("hive.metastore.uris"));
+            "uri=" + nessieUri + ",ref=main,warehouse=" + warehousePath2);
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
@@ -139,10 +160,13 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     Assertions.assertThat(run.getOut()).contains("Identified 4 tables for registration.");
     Assertions.assertThat(run.getOut())
         .contains(
-            "Summary: \n- Successfully registered 4 tables from HADOOP catalog to"
-                + " HIVE catalog.");
+            "Summary: \n- Successfully registered 4 tables from HIVE catalog to"
+                + " NESSIE catalog.");
     Assertions.assertThat(run.getOut())
         .contains("Details: \n" + "- Successfully registered these tables:\n");
+    // using the fresh instance of nessie catalog at client side to get the latest state of main
+    // branch.
+    catalog2 = createNessieCatalog(warehousePath2, nessieUri);
     Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
@@ -160,13 +184,13 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     RunCLI run =
         RunCLI.run(
             "--source-catalog-type",
-            "HIVE",
+            "NESSIE",
             "--source-catalog-properties",
-            "warehouse=" + warehousePath1 + ",uri=" + catalog.getConf().get("hive.metastore.uris"),
+            "uri=" + nessieUri + ",ref=main,warehouse=" + warehousePath2,
             "--target-catalog-type",
-            "HADOOP",
+            "HIVE",
             "--target-catalog-properties",
-            "warehouse=" + warehousePath2 + ",type=hadoop",
+            "warehouse=" + warehousePath1 + ",uri=" + catalog.getConf().get("hive.metastore.uris"),
             "--delete-source-tables");
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
@@ -177,8 +201,8 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
     Assertions.assertThat(run.getOut()).contains("Identified 1 tables for migration.");
     Assertions.assertThat(run.getOut())
         .contains(
-            "Summary: \n- Successfully migrated 1 tables from HIVE catalog to"
-                + " HADOOP catalog.");
+            "Summary: \n- Successfully migrated 1 tables from NESSIE catalog to"
+                + " HIVE catalog.");
     Assertions.assertThat(run.getOut())
         .contains("Details: \n" + "- Successfully migrated these tables:\n");
     // migrated table should be present in the target catalog
@@ -189,6 +213,9 @@ public class ITHiveAndHadoop extends HiveMetastoreTest {
             TableIdentifier.parse("bar.tbl3"));
 
     // migrated table should not be there in the source catalog
+    // using the fresh instance of nessie catalog at client side to get the latest state of main
+    // branch.
+    catalog2 = createNessieCatalog(warehousePath2, nessieUri);
     Assertions.assertThat(catalog2.listTables(Namespace.of("bar"))).isEmpty();
   }
 
