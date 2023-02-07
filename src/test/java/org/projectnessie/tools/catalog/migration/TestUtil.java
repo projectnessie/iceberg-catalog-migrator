@@ -21,7 +21,6 @@ import java.io.File;
 public final class TestUtil {
 
   private TestUtil() {}
-  ;
 
   static void respondAsContinue() {
     String input = "yes\n";

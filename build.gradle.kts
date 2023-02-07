@@ -34,6 +34,8 @@ repositories {
 
 applyShadowJar()
 
+testTasks()
+
 dependencies {
   api(libs.guava)
   api(libs.slf4j)
@@ -156,3 +158,45 @@ shadowJar {
   manifest { attributes["Main-Class"] = mainClassName }
   finalizedBy(unixExecutable)
 }
+
+fun Project.testTasks() {
+  if (projectDir.resolve("src/test").exists()) {
+    tasks.withType<Test>().configureEach {
+      useJUnitPlatform {}
+      val testJvmArgs: String? by project
+      if (testJvmArgs != null) {
+        jvmArgs((testJvmArgs as String).split(" "))
+      }
+
+      systemProperty("file.encoding", "UTF-8")
+      systemProperty("user.language", "en")
+      systemProperty("user.country", "US")
+      systemProperty("user.variant", "")
+      systemProperty("test.log.level", testLogLevel())
+      environment("TESTCONTAINERS_REUSE_ENABLE", "true")
+      filter {
+        isFailOnNoMatchingTests = false
+        when (name) {
+          "test" -> {
+            includeTestsMatching("*Test")
+            includeTestsMatching("Test*")
+            excludeTestsMatching("Abstract*")
+            excludeTestsMatching("IT*")
+          }
+          "intTest" -> includeTestsMatching("IT*")
+        }
+      }
+      if (name != "test") {
+        mustRunAfter(tasks.named<Test>("test"))
+      }
+    }
+    val intTest =
+      tasks.register<Test>("intTest") {
+        group = "verification"
+        description = "Runs the integration tests."
+      }
+    tasks.named("check") { dependsOn(intTest) }
+  }
+}
+
+fun testLogLevel() = System.getProperty("test.log.level", "WARN")
