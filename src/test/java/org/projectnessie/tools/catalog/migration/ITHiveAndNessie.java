@@ -16,8 +16,10 @@
 package org.projectnessie.tools.catalog.migration;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.projectnessie.tools.catalog.migration.CatalogMigrationCLI.DRY_RUN_FILE;
+import static org.projectnessie.tools.catalog.migration.CatalogMigrationCLI.FAILED_IDENTIFIERS_FILE;
+import static org.projectnessie.tools.catalog.migration.CatalogMigrationCLI.FAILED_TO_DELETE_AT_SOURCE_FILE;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
@@ -65,12 +67,8 @@ public class ITHiveAndNessie extends HiveMetastoreTest {
   private static GenericContainer<?> container;
 
   @BeforeAll
-  protected static void setup() {
-    try {
-      startMetastore();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+  protected static void setup() throws Exception {
+    startMetastore();
     warehousePath1 = catalog.getConf().get("hive.metastore.warehouse.dir");
     warehousePath2 = String.format("file://%s", warehouse2.getAbsolutePath());
 
@@ -96,12 +94,8 @@ public class ITHiveAndNessie extends HiveMetastoreTest {
   }
 
   @AfterAll
-  protected static void tearDown() {
-    try {
-      stopMetastore();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
+  protected static void tearDown() throws Exception {
+    stopMetastore();
     container.stop();
   }
 
@@ -126,6 +120,9 @@ public class ITHiveAndNessie extends HiveMetastoreTest {
               catalog1.listTables(namespace).forEach(catalog1::dropTable);
               catalog2.listTables(namespace).forEach(catalog2::dropTable);
             });
+    TestUtil.deleteFileIfExists(FAILED_IDENTIFIERS_FILE);
+    TestUtil.deleteFileIfExists(FAILED_TO_DELETE_AT_SOURCE_FILE);
+    TestUtil.deleteFileIfExists(DRY_RUN_FILE);
   }
 
   private static Catalog createNessieCatalog(String warehousePath, String uri) {
@@ -140,7 +137,7 @@ public class ITHiveAndNessie extends HiveMetastoreTest {
   @Test
   @Order(0)
   public void testRegister() throws Exception {
-    respondAsContinue();
+    TestUtil.respondAsContinue();
     RunCLI run =
         RunCLI.run(
             "--source-catalog-type",
@@ -180,7 +177,7 @@ public class ITHiveAndNessie extends HiveMetastoreTest {
   @Test
   @Order(1)
   public void testMigrate() throws Exception {
-    respondAsContinue();
+    TestUtil.respondAsContinue();
     RunCLI run =
         RunCLI.run(
             "--source-catalog-type",
@@ -217,11 +214,5 @@ public class ITHiveAndNessie extends HiveMetastoreTest {
     // branch.
     catalog2 = createNessieCatalog(warehousePath2, nessieUri);
     Assertions.assertThat(catalog2.listTables(Namespace.of("bar"))).isEmpty();
-  }
-
-  private void respondAsContinue() {
-    String input = "yes\n";
-    ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
-    System.setIn(in);
   }
 }

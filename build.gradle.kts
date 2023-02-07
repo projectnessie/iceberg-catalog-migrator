@@ -49,12 +49,14 @@ dependencies {
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
-  testImplementation("org.assertj:assertj-core:3.24.2")
+  testImplementation(libs.assertj)
+
   // for integration tests
   testImplementation(
     "org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests"
   )
-  testImplementation("org.apache.hive:hive-metastore:2.3.8") {
+  testImplementation("org.apache.hive:hive-metastore:${libs.versions.hive.get()}") {
+    // these are taken from iceberg repo configurations
     exclude("org.apache.avro", "avro")
     exclude("org.slf4j", "slf4j-log4j12")
     exclude("org.pentaho") // missing dependency
@@ -69,7 +71,8 @@ dependencies {
     exclude("javax.transaction", "transaction-api")
     exclude("com.zaxxer", "HikariCP")
   }
-  testImplementation("org.apache.hive:hive-exec:2.3.8:core") {
+  testImplementation("org.apache.hive:hive-exec:${libs.versions.hive.get()}:core") {
+    // these are taken from iceberg repo configurations
     exclude("org.apache.avro", "avro")
     exclude("org.slf4j", "slf4j-log4j12")
     exclude("org.pentaho") // missing dependency
@@ -81,7 +84,7 @@ dependencies {
     exclude("com.google.code.findbugs", "jsr305")
   }
   testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
-  testImplementation("org.testcontainers:testcontainers:1.17.6")
+  testImplementation(libs.test.containers)
 }
 
 group = "org.projectnessie"

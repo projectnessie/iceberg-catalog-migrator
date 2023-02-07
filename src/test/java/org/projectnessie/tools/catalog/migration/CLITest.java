@@ -16,7 +16,9 @@
 package org.projectnessie.tools.catalog.migration;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.projectnessie.tools.catalog.migration.CatalogMigrationCLI.DRY_RUN_FILE;
 import static org.projectnessie.tools.catalog.migration.CatalogMigrationCLI.FAILED_IDENTIFIERS_FILE;
+import static org.projectnessie.tools.catalog.migration.CatalogMigrationCLI.FAILED_TO_DELETE_AT_SOURCE_FILE;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -85,20 +87,8 @@ public class CLITest {
     respondAsContinue();
   }
 
-  private void respondAsContinue() {
+  private static void respondAsContinue() {
     String input = "yes\n";
-    ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
-    System.setIn(in);
-  }
-
-  private void respondAsAbort() {
-    String input = "no\n";
-    ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
-    System.setIn(in);
-  }
-
-  private void respondDummy() {
-    String input = "dummy\n";
     ByteArrayInputStream in = new ByteArrayInputStream(input.getBytes());
     System.setIn(in);
   }
@@ -111,6 +101,9 @@ public class CLITest {
               catalog1.listTables(namespace).forEach(catalog1::dropTable);
               catalog2.listTables(namespace).forEach(catalog2::dropTable);
             });
+    TestUtil.deleteFileIfExists(FAILED_IDENTIFIERS_FILE);
+    TestUtil.deleteFileIfExists(FAILED_TO_DELETE_AT_SOURCE_FILE);
+    TestUtil.deleteFileIfExists(DRY_RUN_FILE);
   }
 
   private static Catalog createCatalog(String warehousePath, String name) {
@@ -452,7 +445,7 @@ public class CLITest {
   @Test
   @Order(6)
   public void testPrompt() throws Exception {
-    respondAsAbort();
+    TestUtil.respondAsAbort();
     RunCLI run = runWithDefaultArgs();
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     // should abort
@@ -460,7 +453,7 @@ public class CLITest {
     // should not have other messages
     Assertions.assertThat(run.getOut()).doesNotContain("Summary");
 
-    respondDummy();
+    TestUtil.respondDummy();
     run = runWithDefaultArgs();
     Assertions.assertThat(run.getExitCode()).isEqualTo(1);
     Assertions.assertThat(run.getOut()).contains("Invalid input. Please enter 'yes' or 'no'.");
@@ -512,7 +505,7 @@ public class CLITest {
     Assertions.assertThat(run.getOut()).startsWith(System.getProperty("expectedCLIVersion"));
   }
 
-  private RunCLI runWithDefaultArgs() throws Exception {
+  private static RunCLI runWithDefaultArgs() throws Exception {
     return RunCLI.run(
         "--source-catalog-type",
         "HADOOP",

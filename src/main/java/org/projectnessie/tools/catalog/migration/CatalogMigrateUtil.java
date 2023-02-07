@@ -47,8 +47,6 @@ public class CatalogMigrateUtil {
    * successful migration, deletes the table entry from source catalog(not applicable for
    * HadoopCatalog).
    *
-   * <p>Supports bulk migrations with a multi-thread execution.
-   *
    * <p>Users must make sure that no in-progress commits on the tables of source catalog during
    * migration.
    *
@@ -82,8 +80,6 @@ public class CatalogMigrateUtil {
   /**
    * Register tables from one catalog(source catalog) to another catalog(target catalog). User has
    * to take care of deleting the tables from source catalog after registration.
-   *
-   * <p>Supports bulk registration with a multi-thread execution.
    *
    * <p>Users must make sure that no in-progress commits on the tables of source catalog during
    * registration.
@@ -156,15 +152,13 @@ public class CatalogMigrateUtil {
               tableIdentifier);
 
           // HadoopCatalog dropTable will delete the table files completely even when purge is
-          // false.
-          // So, skip dropTable for HadoopCatalog.
+          // false. So, skip dropTable for HadoopCatalog.
           boolean deleteTableFromSourceCatalog =
-              deleteEntriesFromSourceCatalog && !(sourceCatalog instanceof HadoopCatalog);
-
+              !(sourceCatalog instanceof HadoopCatalog) && deleteEntriesFromSourceCatalog;
           try {
             if (deleteTableFromSourceCatalog) {
-              boolean failedToDelete = sourceCatalog.dropTable(tableIdentifier, false);
-              if (failedToDelete) {
+              boolean isDropped = sourceCatalog.dropTable(tableIdentifier, false);
+              if (!isDropped) {
                 failedToDeleteTableIdentifiers.add(tableIdentifier);
               }
             }
@@ -203,7 +197,7 @@ public class CatalogMigrateUtil {
       LOG.info("Successfully migrated the table {}", tableIdentifier);
     } catch (Exception ex) {
       failedToMigrateTableIdentifiers.add(tableIdentifier);
-      LOG.warn("Unable to migrate table {}", tableIdentifier, ex);
+      LOG.warn("Unable to register the table {}", tableIdentifier, ex);
     }
   }
 

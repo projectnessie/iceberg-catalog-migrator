@@ -1,33 +1,38 @@
 [versions]
+assertj = "3.24.2"
+aws = "1.7.4"
 googleJavaFormat = "1.15.0"
 guava = "31.1-jre"
+hadoop = "3.2.4"
+hive = "2.3.8"
+iceberg = "1.1.0"
 junit = "5.9.1"
+logback = "1.2.11"
 nessieBuildPlugins = "0.2.14"
 picocli = "4.7.0"
 shadowPlugin = "7.1.2"
 slf4j = "1.7.36"
 spotlessPlugin = "6.12.0"
-logback = "1.2.11"
-iceberg = "1.1.0"
-hadoop = "3.2.4"
-aws = "1.7.4"
+testContainers = "1.17.6"
 
 [libraries]
+assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+aws-sdk = { module = "com.amazonaws:aws-java-sdk", version.ref = "aws" }
 google-java-format = { module = "com.google.googlejavaformat:google-java-format", version.ref = "googleJavaFormat" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+hadoop-aws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoop" }
+hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
+iceberg-dell = { module = "org.apache.iceberg:iceberg-dell", version.ref = "iceberg" }
+iceberg-spark-runtime = { module = "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12", version.ref = "iceberg" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
-picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
-guava = { module = "com.google.guava:guava", version.ref = "guava" }
-slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
 logback-core = { module = "ch.qos.logback:logback-core", version.ref = "logback" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
-iceberg-spark-runtime = { module = "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12", version.ref = "iceberg" }
-iceberg-dell = { module = "org.apache.iceberg:iceberg-dell", version.ref = "iceberg" }
-hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
-hadoop-aws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoop" }
-aws-sdk = { module = "com.amazonaws:aws-java-sdk", version.ref = "aws" }
+picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
+slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
+test-containers = { module = "org.testcontainers:testcontainers", version.ref = "testContainers" }
 
 [plugins]
 nessie-build-spotless = { id = "org.projectnessie.buildsupport.spotless", version.ref = "nessieBuildPlugins" }

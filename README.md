@@ -74,14 +74,14 @@ Bulk register the iceberg tables from source catalog to target catalog without d
   -V, --version   Print version information and exit.
 ```
 
+> :warning: **It is recommended to use this CLI tool when there is no in-progress commits for the tables in the source catalog.**
+In-progress commits may not make it into the target catalog if used.
+
 > :warning: By default this tool just registers the table. 
 Which means the table will be present in both the catalogs after registering.
 Operating same table from more than one catalog can lead to missing updates, loss of data and table corruption. 
 So, it is recommended to use the '--delete-source-tables' option in CLI to automatically delete the table from source catalog after registering 
 or avoid operating tables from the source catalog after registering if '--delete-source-tables' option is not used.
-
-> :warning: **It is recommended to use this CLI tool when there is no in-progress commits for the tables in the source catalog.**
-In-progress commits may not make it into the target catalog if used.
 
 # Sample Inputs
 ## Bulk migrating all the tables from Hadoop catalog to Nessie catalog (main branch)

@@ -348,7 +348,7 @@ public class CatalogMigrationCLI implements Callable<Integer> {
     printWriter.println(result.registeredTableIdentifiers());
   }
 
-  private void writeToFile(String filePath, List<TableIdentifier> identifiers) {
+  private static void writeToFile(String filePath, List<TableIdentifier> identifiers) {
     List<String> identifiersString =
         identifiers.stream().map(TableIdentifier::toString).collect(Collectors.toList());
     try {
@@ -395,8 +395,7 @@ public class CatalogMigrationCLI implements Callable<Integer> {
             + "\tb) After the registration, successfully registered tables will be present in both source and target "
             + "catalog. "
             + "\n\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
-            + "loss"
-            + " of data, and table corruption. "
+            + "loss of data, and table corruption. "
             + "\n\tUse `--delete-source-tables` option to automatically delete the table from source catalog after "
             + "migration.";
     return proceed(warning, printWriter);
