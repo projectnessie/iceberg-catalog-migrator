@@ -421,6 +421,9 @@ public class CLITest {
                 + "if the failure is because of network/connection timeouts.");
     Assertions.assertThat(run.getOut())
         .contains("Details: \n" + "- Failed to register these tables:\n" + "[foo.tbl-2]");
+    Assertions.assertThat(new File(FAILED_IDENTIFIERS_FILE).exists()).isTrue();
+    Assertions.assertThat(Files.readAllLines(Paths.get(FAILED_IDENTIFIERS_FILE)))
+        .containsExactly("foo.tbl-2");
   }
 
   @Test
@@ -495,6 +498,9 @@ public class CLITest {
                 + "You can use this file with `--identifiers-from-file` option.");
     Assertions.assertThat(run.getOut())
         .contains("Details: \n" + "- Identified these tables for registration by dry-run:\n");
+    Assertions.assertThat(new File(DRY_RUN_FILE).exists()).isTrue();
+    Assertions.assertThat(Files.readAllLines(Paths.get(DRY_RUN_FILE)))
+        .containsExactlyInAnyOrder("foo.tbl-1", "foo.tbl-2", "bar.tbl-3", "bar.tbl-4");
   }
 
   @Test
