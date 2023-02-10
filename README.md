@@ -29,7 +29,7 @@ Below is the CLI syntax:
 ```
 $ java -jar iceberg-catalog-migrator-0.1.0-SNAPSHOT.jar -h
 Usage: register [-hV] [--delete-source-tables] [--dry-run] [--identifiers-from-file=<identifiersFromFile>] [--identifiers-regex=<identifiersRegEx>]
-                --source-catalog-type=<sourceCatalogType> [--source-custom-catalog-impl=<sourceCustomCatalogImpl>]
+                [--output-dir=<outputDirPath>] --source-catalog-type=<sourceCatalogType> [--source-custom-catalog-impl=<sourceCustomCatalogImpl>]
                 --target-catalog-type=<targetCatalogType> [--target-custom-catalog-impl=<targetCustomCatalogImpl>] [--identifiers=<identifiers>[,
                 <identifiers>...]]... [--source-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
                 --source-catalog-properties=<String=String>[,<String=String>...] [--source-catalog-properties=<String=String>[,
@@ -70,6 +70,9 @@ Bulk register the iceberg tables from source catalog to target catalog without d
                     registered by running this.
       --delete-source-tables
                   optional configuration to delete the table entry from source catalog after successfully registering it to target catalog.
+      --output-dir=<outputDirPath>
+                  optional local output directory path to write CLI output files like `failed_identifiers.txt`, `failed_to_delete_at_source.txt`,
+                    `dry_run_identifiers.txt`. Uses the present working directory if not specified.
   -h, --help      Show this help message and exit.
   -V, --version   Print version information and exit.
 ```

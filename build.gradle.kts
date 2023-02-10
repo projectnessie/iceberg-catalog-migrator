@@ -20,16 +20,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   `java-library`
   `maven-publish`
-  id("com.diffplug.spotless")
-  id("com.github.johnrengelman.shadow")
-  Utilities
-}
-
-repositories {
-  if (System.getProperty("withMavenLocal").toBoolean()) {
-    mavenLocal()
-  }
-  mavenCentral()
+  alias(libs.plugins.nessie.run)
+  BuildSupport
 }
 
 applyShadowJar()
@@ -37,21 +29,22 @@ applyShadowJar()
 testTasks()
 
 dependencies {
-  api(libs.guava)
-  api(libs.slf4j)
-  api(libs.picocli)
-  api(libs.logback.classic)
-  api(libs.logback.core)
-  api(libs.iceberg.spark.runtime)
-  api(libs.iceberg.dell)
-  api(libs.hadoop.aws)
-  api(libs.hadoop.common)
-  api(libs.aws.sdk)
+  implementation(libs.guava)
+  implementation(libs.slf4j)
+  implementation(libs.picocli)
+  implementation(libs.logback.classic)
+  implementation(libs.logback.core)
+  implementation(libs.iceberg.spark.runtime)
+  implementation(libs.iceberg.dell)
+  implementation(libs.hadoop.aws)
+  implementation(libs.hadoop.common)
+  implementation(libs.aws.sdk)
 
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
   testImplementation(libs.assertj)
+  testImplementation(libs.system.lambda)
 
   // for integration tests
   testImplementation(
@@ -86,7 +79,8 @@ dependencies {
     exclude("com.google.code.findbugs", "jsr305")
   }
   testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
-  testImplementation(libs.test.containers)
+
+  nessieQuarkusServer("org.projectnessie:nessie-quarkus:${libs.versions.nessie.get()}:runner")
 }
 
 group = "org.projectnessie"
@@ -107,25 +101,6 @@ val processResources =
   }
 
 tasks.named<Test>("test") { systemProperty("expectedCLIVersion", project.version) }
-
-fun Project.applyShadowJar() {
-  plugins.apply(ShadowPlugin::class.java)
-
-  plugins.withType<ShadowPlugin>().configureEach {
-    val shadowJar =
-      tasks.named<ShadowJar>("shadowJar") {
-        isZip64 = true // as the package has more than 65535 files
-        outputs.cacheIf { false } // do not cache uber/shaded jars
-        archiveClassifier.set("")
-        mergeServiceFiles()
-      }
-
-    tasks.named<Jar>("jar") {
-      dependsOn(shadowJar)
-      archiveClassifier.set("raw")
-    }
-  }
-}
 
 val mainClassName = "org.projectnessie.tools.catalog.migration.CatalogMigrationCLI"
 
@@ -157,6 +132,30 @@ val unixExecutable by
 shadowJar {
   manifest { attributes["Main-Class"] = mainClassName }
   finalizedBy(unixExecutable)
+}
+
+nessieQuarkusApp {
+  includeTask(tasks.named<Test>("intTest"))
+  environmentNonInput.put("HTTP_ACCESS_LOG_LEVEL", testLogLevel())
+}
+
+fun Project.applyShadowJar() {
+  plugins.apply(ShadowPlugin::class.java)
+
+  plugins.withType<ShadowPlugin>().configureEach {
+    val shadowJar =
+      tasks.named<ShadowJar>("shadowJar") {
+        isZip64 = true // as the package has more than 65535 files
+        outputs.cacheIf { false } // do not cache uber/shaded jars
+        archiveClassifier.set("")
+        mergeServiceFiles()
+      }
+
+    tasks.named<Jar>("jar") {
+      dependsOn(shadowJar)
+      archiveClassifier.set("raw")
+    }
+  }
 }
 
 fun Project.testTasks() {

@@ -15,10 +15,13 @@
  */
 package org.projectnessie.tools.catalog.migration;
 
+import static com.github.stefanbirkner.systemlambda.SystemLambda.withTextFromSystemIn;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import picocli.CommandLine;
 
 /** Helper class for tests. */
@@ -71,6 +74,30 @@ public final class RunCLI {
         PrintWriter errWriter = new PrintWriter(err)) {
       int exitCode = runMain(outWriter, errWriter, args);
       return new RunCLI(exitCode, out.toString(), err.toString(), args);
+    }
+  }
+
+  static RunCLI runWithContinue(String... args) throws Exception {
+    return runWithSystemInput(args, "yes");
+  }
+
+  static RunCLI runWithAbort(String... args) throws Exception {
+    return runWithSystemInput(args, "no");
+  }
+
+  static RunCLI runWithDummyInput(String... args) throws Exception {
+    return runWithSystemInput(args, "dummy");
+  }
+
+  private static RunCLI runWithSystemInput(String[] args, String input) throws Exception {
+    try (StringWriter out = new StringWriter();
+        PrintWriter outWriter = new PrintWriter(out);
+        StringWriter err = new StringWriter();
+        PrintWriter errWriter = new PrintWriter(err)) {
+
+      AtomicInteger exitCode = new AtomicInteger();
+      withTextFromSystemIn(input).execute(() -> exitCode.set(runMain(outWriter, errWriter, args)));
+      return new RunCLI(exitCode.get(), out.toString(), err.toString(), args);
     }
   }
 

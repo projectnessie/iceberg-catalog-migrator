@@ -15,13 +15,11 @@
  */
 
 import org.gradle.api.JavaVersion
-import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
-import org.gradle.api.tasks.testing.Test
 import org.gradle.external.javadoc.CoreJavadocOptions
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.repositories
@@ -33,13 +31,6 @@ repositories {
   mavenCentral()
   if (System.getProperty("withMavenLocal").toBoolean()) {
     mavenLocal()
-  }
-}
-
-if (project.projectDir.resolve("src/test/java").exists()) {
-  tasks.withType<Test>().configureEach {
-    useJUnitPlatform {}
-    maxParallelForks = Runtime.getRuntime().availableProcessors()
   }
 }
 
@@ -69,8 +60,4 @@ plugins.withType<JavaPlugin>().configureEach {
     targetCompatibility = JavaVersion.VERSION_1_8
     modularity.inferModulePath.set(true)
   }
-}
-
-if (project != rootProject) {
-  tasks.withType<Jar>().configureEach { duplicatesStrategy = DuplicatesStrategy.WARN }
 }

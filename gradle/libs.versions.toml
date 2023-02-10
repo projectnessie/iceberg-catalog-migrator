@@ -8,12 +8,14 @@ hive = "2.3.8"
 iceberg = "1.1.0"
 junit = "5.9.1"
 logback = "1.2.11"
+nessie = "0.48.2"
 nessieBuildPlugins = "0.2.14"
+nessieRunner = "0.28.1"
 picocli = "4.7.0"
 shadowPlugin = "7.1.2"
 slf4j = "1.7.36"
 spotlessPlugin = "6.12.0"
-testContainers = "1.17.6"
+systemLambda = "1.2.1"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
@@ -32,9 +34,10 @@ logback-core = { module = "ch.qos.logback:logback-core", version.ref = "logback"
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
-test-containers = { module = "org.testcontainers:testcontainers", version.ref = "testContainers" }
+system-lambda = { module = "com.github.stefanbirkner:system-lambda", version.ref = "systemLambda" }
 
 [plugins]
 nessie-build-spotless = { id = "org.projectnessie.buildsupport.spotless", version.ref = "nessieBuildPlugins" }
+nessie-run = { id = "org.projectnessie", version.ref = "nessieRunner" }
 shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadowPlugin" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotlessPlugin" }
