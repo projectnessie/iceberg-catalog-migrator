@@ -26,18 +26,16 @@ public class ITHadoopToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
-    dryRunFile = outputDir.getAbsolutePath() + "/" + DRY_RUN_FILE;
-    failedIdentifiersFile = outputDir.getAbsolutePath() + "/" + FAILED_IDENTIFIERS_FILE;
-    String warehousePath1 = String.format("file://%s", warehouse1.getAbsolutePath());
-    String warehousePath2 = String.format("file://%s", warehouse2.getAbsolutePath());
-    sourceCatalogProperties = "warehouse=" + warehousePath1 + ",type=hadoop";
+    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
+    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
+    sourceCatalogProperties = "warehouse=" + warehouse1.toAbsolutePath() + ",type=hadoop";
     targetCatalogProperties =
         "warehouse="
-            + warehousePath2
+            + warehouse2.toAbsolutePath()
             + ",uri="
             + HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris");
 
-    catalog1 = createHadoopCatalog(warehousePath1, "catalog1");
+    catalog1 = createHadoopCatalog(warehouse1.toString(), "catalog1");
     catalog2 = HiveMetaStoreRunner.hiveCatalog();
 
     sourceCatalogType = catalogType(catalog1);

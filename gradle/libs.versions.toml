@@ -6,8 +6,10 @@ guava = "31.1-jre"
 hadoop = "3.2.4"
 hive = "2.3.8"
 iceberg = "1.1.0"
+immutables = "2.9.3"
 junit = "5.9.1"
 logback = "1.2.11"
+mockito = "5.1.1"
 nessie = "0.48.2"
 nessieBuildPlugins = "0.2.14"
 nessieRunner = "0.28.1"
@@ -15,7 +17,6 @@ picocli = "4.7.0"
 shadowPlugin = "7.1.2"
 slf4j = "1.7.36"
 spotlessPlugin = "6.12.0"
-systemLambda = "1.2.1"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
@@ -26,15 +27,16 @@ hadoop-aws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoop" }
 hadoop-common = { module = "org.apache.hadoop:hadoop-common", version.ref = "hadoop" }
 iceberg-dell = { module = "org.apache.iceberg:iceberg-dell", version.ref = "iceberg" }
 iceberg-spark-runtime = { module = "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12", version.ref = "iceberg" }
+immutables = { module = "org.immutables:value", version.ref = "immutables" }
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
 logback-core = { module = "ch.qos.logback:logback-core", version.ref = "logback" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+mockito = { module = "org.mockito:mockito-inline", version.ref = "mockito" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
-system-lambda = { module = "com.github.stefanbirkner:system-lambda", version.ref = "systemLambda" }
 
 [plugins]
 nessie-build-spotless = { id = "org.projectnessie.buildsupport.spotless", version.ref = "nessieBuildPlugins" }

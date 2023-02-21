@@ -15,13 +15,14 @@
  */
 package org.projectnessie.tools.catalog.migration;
 
-import static com.github.stefanbirkner.systemlambda.SystemLambda.withTextFromSystemIn;
+import static org.mockito.Mockito.mockStatic;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.mockito.MockedStatic;
 import picocli.CommandLine;
 
 /** Helper class for tests. */
@@ -77,27 +78,22 @@ public final class RunCLI {
     }
   }
 
-  static RunCLI runWithContinue(String... args) throws Exception {
-    return runWithSystemInput(args, "yes");
-  }
-
-  static RunCLI runWithAbort(String... args) throws Exception {
-    return runWithSystemInput(args, "no");
-  }
-
-  static RunCLI runWithDummyInput(String... args) throws Exception {
-    return runWithSystemInput(args, "dummy");
-  }
-
-  private static RunCLI runWithSystemInput(String[] args, String input) throws Exception {
+  static RunCLI runWithMockedPrompts(String... args) throws Exception {
     try (StringWriter out = new StringWriter();
         PrintWriter outWriter = new PrintWriter(out);
         StringWriter err = new StringWriter();
         PrintWriter errWriter = new PrintWriter(err)) {
 
       AtomicInteger exitCode = new AtomicInteger();
-      withTextFromSystemIn(input).execute(() -> exitCode.set(runMain(outWriter, errWriter, args)));
-      return new RunCLI(exitCode.get(), out.toString(), err.toString(), args);
+      try (MockedStatic<PromptUtil> mocked = mockStatic(PromptUtil.class)) {
+
+        // To avoid manipulating `System.in`, mock the APIs that use `System.in`
+        mocked.when(() -> PromptUtil.proceedForMigration(outWriter)).thenReturn(true);
+        mocked.when(() -> PromptUtil.proceedForRegistration(outWriter)).thenReturn(true);
+
+        exitCode.set(runMain(outWriter, errWriter, args));
+        return new RunCLI(exitCode.get(), out.toString(), err.toString(), args);
+      }
     }
   }
 
@@ -115,14 +111,9 @@ public final class RunCLI {
 
   @Override
   public String toString() {
-    return "org.projectnessie.tools.catalog.migration.RunCLI{"
-        + "args="
-        + Arrays.toString(args)
-        + "\nexitCode="
-        + exitCode
-        + "\n\nstdout:\n"
-        + out
-        + "\n\nstderr:\n"
-        + err;
+    return String.format(
+        "org.projectnessie.tools.catalog.migration"
+            + ".RunCLI{args=%s%nexitCode=%d%n%nstdout:%n%s%n%nstderr:%n%s",
+        Arrays.toString(args), exitCode, out, err);
   }
 }

@@ -17,7 +17,9 @@ package org.projectnessie.tools.catalog.migration;
 
 import static org.apache.iceberg.types.Types.NestedField.required;
 
-import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,8 +40,17 @@ import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.nessie.NessieCatalog;
 import org.apache.iceberg.rest.RESTCatalog;
 import org.apache.iceberg.types.Types;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractTest {
+
+  protected static @TempDir Path logDir;
+
+  @BeforeAll
+  protected static void initLogDir() {
+    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
+  }
 
   protected static Catalog catalog1;
 
@@ -72,10 +83,9 @@ public abstract class AbstractTest {
     ((SupportsNamespaces) catalog2).dropNamespace(Namespace.of("bar"));
   }
 
-  protected static void deleteFileIfExists(String filePath) {
-    File file = new File(filePath);
-    if (file.exists()) {
-      file.delete();
+  protected static void deleteFileIfExists(Path filePath) throws IOException {
+    if (Files.exists(filePath)) {
+      Files.delete(filePath);
     }
   }
 

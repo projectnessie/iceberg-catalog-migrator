@@ -25,15 +25,13 @@ public class HadoopCLIMigrationTest extends AbstractCLIMigrationTest {
 
   @BeforeAll
   protected static void setup() {
-    dryRunFile = outputDir.getAbsolutePath() + "/" + DRY_RUN_FILE;
-    failedIdentifiersFile = outputDir.getAbsolutePath() + "/" + FAILED_IDENTIFIERS_FILE;
-    String warehousePath1 = String.format("file://%s", warehouse1.getAbsolutePath());
-    String warehousePath2 = String.format("file://%s", warehouse2.getAbsolutePath());
-    sourceCatalogProperties = "warehouse=" + warehousePath1 + ",type=hadoop";
-    targetCatalogProperties = "warehouse=" + warehousePath2 + ",type=hadoop";
+    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
+    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
+    sourceCatalogProperties = "warehouse=" + warehouse1.toAbsolutePath() + ",type=hadoop";
+    targetCatalogProperties = "warehouse=" + warehouse2.toAbsolutePath() + ",type=hadoop";
 
-    catalog1 = createHadoopCatalog(warehousePath1, "catalog1");
-    catalog2 = createHadoopCatalog(warehousePath2, "catalog2");
+    catalog1 = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "catalog1");
+    catalog2 = createHadoopCatalog(warehouse2.toAbsolutePath().toString(), "catalog2");
 
     sourceCatalogType = catalogType(catalog1);
     targetCatalogType = catalogType(catalog2);

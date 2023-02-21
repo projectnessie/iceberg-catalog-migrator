@@ -15,17 +15,16 @@
  */
 package org.projectnessie.tools.catalog.migration;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -50,142 +49,62 @@ public class CatalogMigrator {
   private CatalogMigrator() {}
 
   /**
-   * Migrates tables from one catalog(source catalog) to another catalog(target catalog). After
-   * successful migration, deletes the table entry from source catalog(not applicable for
-   * HadoopCatalog).
-   *
-   * <p>Users must make sure that no in-progress commits on the tables of source catalog during
-   * migration.
-   *
-   * @param tableIdentifiers a list of {@link TableIdentifier} for the tables required to be
-   *     migrated. If not specified, all the tables would be migrated
-   * @param sourceCatalog Source {@link Catalog} from which the tables are chosen
-   * @param targetCatalog Target {@link Catalog} to which the tables need to be migrated
-   * @param identifierRegex regular expression pattern used to migrate only the tables whose
-   *     identifiers match this pattern. Can be provided instead of `tableIdentifiers`.
-   * @param isDryRun to execute as dry run.
-   * @param printWriter to print regular updates on the console.
-   * @param outputDirPath optional path to store the result files. If null, uses present working
-   *     directory.
-   * @return List of successfully migrated and list of failed to migrate table identifiers.
-   */
-  public static CatalogMigrationResult migrateTables(
-      List<TableIdentifier> tableIdentifiers,
-      Catalog sourceCatalog,
-      Catalog targetCatalog,
-      String identifierRegex,
-      boolean isDryRun,
-      PrintWriter printWriter,
-      String outputDirPath) {
-    return registerTables(
-        tableIdentifiers,
-        sourceCatalog,
-        targetCatalog,
-        identifierRegex,
-        isDryRun,
-        printWriter,
-        outputDirPath,
-        true);
-  }
-
-  /**
-   * Register tables from one catalog(source catalog) to another catalog(target catalog). User has
-   * to take care of deleting the tables from source catalog after registration.
+   * Register or Migrate tables from one catalog(source catalog) to another catalog(target catalog).
    *
    * <p>Users must make sure that no in-progress commits on the tables of source catalog during
    * registration.
    *
-   * @param tableIdentifiers a list of {@link TableIdentifier} for the tables required to be
-   *     registered. If not specified, all the tables would be registered
-   * @param sourceCatalog Source {@link Catalog} from which the tables are chosen
-   * @param targetCatalog Target {@link Catalog} to which the tables need to be registered
-   * @param identifierRegex regular expression pattern used to migrate only the tables whose
-   *     identifiers match this pattern. Can be provided instead of `tableIdentifiers`.
-   * @param isDryRun to execute as dry run.
-   * @param printWriter to print regular updates on the console.
-   * @param outputDirPath optional path to store the result files. If null, uses present working
-   *     directory.
-   * @return List of successfully registered and list of failed to register table identifiers.
+   * @param catalogMigratorParams configuration params
+   * @return List of successfully registered/migrated and list of failed to register/migrate table
+   *     identifiers.
    */
-  public static CatalogMigrationResult registerTables(
-      List<TableIdentifier> tableIdentifiers,
-      Catalog sourceCatalog,
-      Catalog targetCatalog,
-      String identifierRegex,
-      boolean isDryRun,
-      PrintWriter printWriter,
-      String outputDirPath) {
-    return registerTables(
-        tableIdentifiers,
-        sourceCatalog,
-        targetCatalog,
-        identifierRegex,
-        isDryRun,
-        printWriter,
-        outputDirPath,
-        false);
-  }
+  public static CatalogMigrationResult registerTables(CatalogMigratorParams catalogMigratorParams) {
 
-  private static CatalogMigrationResult registerTables(
-      List<TableIdentifier> tableIdentifiers,
-      Catalog sourceCatalog,
-      Catalog targetCatalog,
-      String identifierRegex,
-      boolean isDryRun,
-      PrintWriter printWriter,
-      String outputDirPath,
-      boolean deleteEntriesFromSourceCatalog) {
-    validate(sourceCatalog, targetCatalog);
-    Preconditions.checkArgument(printWriter != null, "printWriter is null");
-
-    if (identifierRegex != null && tableIdentifiers != null && !tableIdentifiers.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Both the identifiers list and identifierRegex is configured.");
-    }
-
-    if (!isDryRun) {
-      if (deleteEntriesFromSourceCatalog) {
-        if (!proceedForRegistration(printWriter)) {
-          return CatalogMigrator.CatalogMigrationResult.empty();
-        }
-      } else {
-        if (!proceedForMigration(printWriter)) {
-          return CatalogMigrator.CatalogMigrationResult.empty();
-        }
-      }
-    }
-
+    PrintWriter printWriter = catalogMigratorParams.printWriter();
+    boolean deleteEntriesFromSourceCatalog = catalogMigratorParams.deleteEntriesFromSourceCatalog();
     String operation = deleteEntriesFromSourceCatalog ? "migration" : "registration";
 
     List<TableIdentifier> identifiers;
-    if (tableIdentifiers == null || tableIdentifiers.isEmpty()) {
-      identifiers = getMatchingTableIdentifiers(sourceCatalog, identifierRegex, printWriter);
+    if (catalogMigratorParams.tableIdentifiers() == null
+        || catalogMigratorParams.tableIdentifiers().isEmpty()) {
+      identifiers =
+          getMatchingTableIdentifiers(
+              catalogMigratorParams.sourceCatalog(),
+              catalogMigratorParams.identifierRegex(),
+              printWriter);
     } else {
-      identifiers = tableIdentifiers;
+      identifiers = catalogMigratorParams.tableIdentifiers();
     }
 
     printWriter.println(
-        String.format("\nIdentified %d tables for %s.", identifiers.size(), operation));
+        String.format("%nIdentified %d tables for %s.", identifiers.size(), operation));
 
-    if (isDryRun) {
+    if (catalogMigratorParams.isDryRun()) {
       CatalogMigrationResult result =
-          new CatalogMigrationResult(identifiers, Collections.emptyList(), Collections.emptyList());
+          ImmutableCatalogMigrationResult.builder()
+              .registeredTableIdentifiers(identifiers)
+              .failedToRegisterTableIdentifiers(Collections.emptyList())
+              .failedToDeleteTableIdentifiers(Collections.emptyList())
+              .build();
       printWriter.println("Dry run is completed.");
 
       writeToFile(
-          pathWithOutputDir(outputDirPath, DRY_RUN_FILE), result.registeredTableIdentifiers());
-      printDryRunResults(printWriter, result, deleteEntriesFromSourceCatalog);
+          pathWithOutputDir(catalogMigratorParams.outputDirPath(), DRY_RUN_FILE),
+          result.registeredTableIdentifiers());
+      result.printDryRunResults(printWriter, deleteEntriesFromSourceCatalog);
       return result;
     }
 
-    if (deleteEntriesFromSourceCatalog && sourceCatalog instanceof HadoopCatalog) {
+    if (deleteEntriesFromSourceCatalog
+        && catalogMigratorParams.sourceCatalog() instanceof HadoopCatalog) {
       printWriter.println(
-          "[WARNING]: Source catalog type is HADOOP and it doesn't support dropping tables just from "
-              + "catalog. \nAvoid operating the migrated tables from the source catalog after migration. "
-              + "Use the tables from target catalog.");
+          String.format(
+              "[WARNING]: Source catalog type is HADOOP and it doesn't support dropping tables just from "
+                  + "catalog. %nAvoid operating the migrated tables from the source catalog after migration. "
+                  + "Use the tables from target catalog."));
     }
 
-    printWriter.println(String.format("\nStarted %s ...", operation));
+    printWriter.println(String.format("%nStarted %s ...", operation));
     List<TableIdentifier> registeredTableIdentifiers = new ArrayList<>();
     List<TableIdentifier> failedToRegisterTableIdentifiers = new ArrayList<>();
     List<TableIdentifier> failedToDeleteTableIdentifiers = new ArrayList<>();
@@ -194,8 +113,8 @@ public class CatalogMigrator {
         tableIdentifier -> {
           boolean isRegistered =
               registerTable(
-                  sourceCatalog,
-                  targetCatalog,
+                  catalogMigratorParams.sourceCatalog(),
+                  catalogMigratorParams.targetCatalog(),
                   registeredTableIdentifiers,
                   failedToRegisterTableIdentifiers,
                   tableIdentifier);
@@ -203,12 +122,13 @@ public class CatalogMigrator {
           // HadoopCatalog dropTable will delete the table files completely even when purge is
           // false. So, skip dropTable for HadoopCatalog.
           boolean deleteTableFromSourceCatalog =
-              !(sourceCatalog instanceof HadoopCatalog)
+              !(catalogMigratorParams.sourceCatalog() instanceof HadoopCatalog)
                   && isRegistered
                   && deleteEntriesFromSourceCatalog;
           try {
             if (deleteTableFromSourceCatalog) {
-              boolean isDropped = sourceCatalog.dropTable(tableIdentifier, false);
+              boolean isDropped =
+                  catalogMigratorParams.sourceCatalog().dropTable(tableIdentifier, false);
               if (!isDropped) {
                 failedToDeleteTableIdentifiers.add(tableIdentifier);
               }
@@ -222,37 +142,37 @@ public class CatalogMigrator {
           if (count % 100 == 0) {
             printWriter.println(
                 String.format(
-                    "\nAttempted %s for %d tables out of %d tables.",
+                    "%nAttempted %s for %d tables out of %d tables.",
                     operation, count, identifiers.size()));
           }
         });
-    printWriter.println(String.format("\nFinished %s ...", operation));
+    printWriter.println(String.format("%nFinished %s ...", operation));
 
     CatalogMigrationResult result =
-        new CatalogMigrationResult(
-            registeredTableIdentifiers,
-            failedToRegisterTableIdentifiers,
-            failedToDeleteTableIdentifiers);
+        ImmutableCatalogMigrationResult.builder()
+            .registeredTableIdentifiers(registeredTableIdentifiers)
+            .failedToRegisterTableIdentifiers(failedToRegisterTableIdentifiers)
+            .failedToDeleteTableIdentifiers(failedToDeleteTableIdentifiers)
+            .build();
 
     if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
       writeToFile(
-          pathWithOutputDir(outputDirPath, FAILED_IDENTIFIERS_FILE),
+          pathWithOutputDir(catalogMigratorParams.outputDirPath(), FAILED_IDENTIFIERS_FILE),
           result.failedToRegisterTableIdentifiers());
     }
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
       writeToFile(
-          pathWithOutputDir(outputDirPath, FAILED_TO_DELETE_AT_SOURCE_FILE),
+          pathWithOutputDir(catalogMigratorParams.outputDirPath(), FAILED_TO_DELETE_AT_SOURCE_FILE),
           result.failedToDeleteTableIdentifiers());
     }
 
-    printSummary(
+    result.printSummary(
         printWriter,
-        result,
         deleteEntriesFromSourceCatalog,
-        sourceCatalog.name(),
-        targetCatalog.name());
+        catalogMigratorParams.sourceCatalog().name(),
+        catalogMigratorParams.targetCatalog().name());
 
-    printDetails(printWriter, result, deleteEntriesFromSourceCatalog);
+    result.printDetails(printWriter, deleteEntriesFromSourceCatalog);
 
     return result;
   }
@@ -282,14 +202,16 @@ public class CatalogMigrator {
       Catalog sourceCatalog, String identifierRegex, PrintWriter printWriter) {
     if (identifierRegex == null) {
       printWriter.println(
-          "\nUser has not specified the table identifiers."
-              + " Selecting all the tables from all the namespaces from the source catalog.");
+          String.format(
+              "%nUser has not specified the table identifiers."
+                  + " Selecting all the tables from all the namespaces from the source catalog."));
     } else {
       printWriter.println(
-          "\nUser has not specified the table identifiers."
-              + " Selecting all the tables from all the namespaces from the source catalog "
-              + "which matches the regex pattern:"
-              + identifierRegex);
+          String.format(
+              "%nUser has not specified the table identifiers."
+                  + " Selecting all the tables from all the namespaces from the source catalog "
+                  + "which matches the regex pattern:"
+                  + identifierRegex));
     }
 
     printWriter.println("Collecting all the namespaces from source catalog...");
@@ -318,68 +240,6 @@ public class CatalogMigrator {
     return getMatchingTableIdentifiers(sourceCatalog, namespaces, matchedIdentifiersPredicate);
   }
 
-  private static boolean proceedForRegistration(PrintWriter printWriter) {
-    String warning =
-        "\n[WARNING]\n"
-            + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-            + "\n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
-            + "\n\tSo, while using this tool please make sure there are no in-progress commits for the source "
-            + "catalog\n"
-            + "\n"
-            + "\tb) After the registration, successfully registered tables will be present in both source and target "
-            + "catalog. "
-            + "\n\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
-            + "loss of data, and table corruption. "
-            + "\n\tUse `--delete-source-tables` option to automatically delete the table from source catalog after "
-            + "migration.";
-    return proceed(warning, printWriter);
-  }
-
-  private static boolean proceedForMigration(PrintWriter printWriter) {
-    String warning =
-        "\n[WARNING]\n"
-            + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-            + "\n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
-            + "\n\tSo, while using this tool please make sure there are no in-progress commits for the source "
-            + "catalog\n"
-            + "\n"
-            + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
-            + "\n\tand can only be accessed from the target catalog.";
-    return proceed(warning, printWriter);
-  }
-
-  private static boolean proceed(String warning, PrintWriter printWriter) {
-    try (Scanner scanner = new Scanner(System.in)) {
-      printWriter.println(warning);
-
-      while (true) {
-        printWriter.println(
-            "Have you read the above warnings and are you sure you want to continue? (yes/no):");
-        String input = scanner.nextLine();
-
-        if (input.equalsIgnoreCase("yes")) {
-          printWriter.println("Continuing...");
-          return true;
-        } else if (input.equalsIgnoreCase("no")) {
-          printWriter.println("Aborting...");
-          return false;
-        } else {
-          printWriter.println("Invalid input. Please enter 'yes' or 'no'.");
-        }
-      }
-    }
-  }
-
-  private static String pathWithOutputDir(String outputDirPath, String fileName) {
-    if (outputDirPath == null) {
-      return fileName;
-    }
-    if (outputDirPath.endsWith("/")) {
-      return outputDirPath + fileName;
-    }
-    return outputDirPath + "/" + fileName;
-  }
-
   private static List<TableIdentifier> getMatchingTableIdentifiers(
       Catalog sourceCatalog,
       List<Namespace> namespaces,
@@ -398,148 +258,20 @@ public class CatalogMigrator {
     return allIdentifiers;
   }
 
-  private static void validate(Catalog sourceCatalog, Catalog targetCatalog) {
-    Preconditions.checkArgument(sourceCatalog != null, "Invalid source catalog: null");
-    Preconditions.checkArgument(targetCatalog != null, "Invalid target catalog: null");
-    Preconditions.checkArgument(
-        !targetCatalog.equals(sourceCatalog), "target catalog is same as source catalog");
+  private static Path pathWithOutputDir(String outputDirPath, String fileName) {
+    if (outputDirPath == null) {
+      return Paths.get(fileName);
+    }
+    return Paths.get(outputDirPath, fileName).toAbsolutePath();
   }
 
-  private static void printSummary(
-      PrintWriter printWriter,
-      CatalogMigrator.CatalogMigrationResult result,
-      boolean deleteSourceCatalogTables,
-      String sourceCatalogType,
-      String targetCatalogType) {
-    printWriter.println("\nSummary: ");
-    if (!result.registeredTableIdentifiers().isEmpty()) {
-      printWriter.println(
-          String.format(
-              "- Successfully %s %d tables from %s catalog to %s catalog.",
-              deleteSourceCatalogTables ? "migrated" : "registered",
-              result.registeredTableIdentifiers().size(),
-              sourceCatalogType,
-              targetCatalogType));
-    }
-    if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
-      printWriter.println(
-          String.format(
-              "- Failed to %s %d tables from %s catalog to %s catalog. "
-                  + "Please check the `catalog_migration.log` file for the failure reason. "
-                  + "\nFailed identifiers are written into `%s`. "
-                  + "Retry with that file using `--identifiers-from-file` option "
-                  + "if the failure is because of network/connection timeouts.",
-              deleteSourceCatalogTables ? "migrate" : "register",
-              result.failedToRegisterTableIdentifiers().size(),
-              sourceCatalogType,
-              targetCatalogType,
-              FAILED_IDENTIFIERS_FILE));
-    }
-    if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
-      printWriter.println(
-          String.format(
-              "- Failed to delete %d tables from %s catalog. "
-                  + "Please check the `catalog_migration.log` file for the reason. "
-                  + "\nFailed to delete identifiers are written into `%s`. ",
-              result.failedToDeleteTableIdentifiers().size(),
-              sourceCatalogType,
-              FAILED_TO_DELETE_AT_SOURCE_FILE));
-    }
-  }
-
-  private static void printDetails(
-      PrintWriter printWriter,
-      CatalogMigrator.CatalogMigrationResult result,
-      boolean deleteSourceCatalogTables) {
-    printWriter.println("\nDetails: ");
-    if (!result.registeredTableIdentifiers().isEmpty()) {
-      printWriter.println(
-          String.format(
-              "- Successfully %s these tables:",
-              deleteSourceCatalogTables ? "migrated" : "registered"));
-      printWriter.println(result.registeredTableIdentifiers());
-    }
-
-    if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
-      printWriter.println(
-          String.format(
-              "- Failed to %s these tables:", deleteSourceCatalogTables ? "migrate" : "register"));
-      printWriter.println(result.failedToRegisterTableIdentifiers());
-    }
-
-    if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
-      printWriter.println("- [WARNING] Failed to delete these tables from source catalog:");
-      printWriter.println(result.failedToDeleteTableIdentifiers());
-    }
-  }
-
-  private static void printDryRunResults(
-      PrintWriter printWriter,
-      CatalogMigrator.CatalogMigrationResult result,
-      boolean deleteSourceCatalogTables) {
-    printWriter.println("\nSummary: ");
-    if (result.registeredTableIdentifiers().isEmpty()) {
-      printWriter.println(
-          String.format(
-              "- No tables are identified for %s. Please check logs for more info.",
-              deleteSourceCatalogTables ? "migration" : "registration"));
-      return;
-    }
-    printWriter.println(
-        String.format(
-            "- Identified %d tables for %s by dry-run. These identifiers are also written into %s. "
-                + "You can use this file with `--identifiers-from-file` option.",
-            result.registeredTableIdentifiers().size(),
-            deleteSourceCatalogTables ? "migration" : "registration",
-            DRY_RUN_FILE));
-
-    printWriter.println("\nDetails: ");
-    printWriter.println(
-        String.format(
-            "- Identified these tables for %s by dry-run:",
-            deleteSourceCatalogTables ? "migration" : "registration"));
-    printWriter.println(result.registeredTableIdentifiers());
-  }
-
-  private static void writeToFile(String filePath, List<TableIdentifier> identifiers) {
+  private static void writeToFile(Path filePath, List<TableIdentifier> identifiers) {
     List<String> identifiersString =
         identifiers.stream().map(TableIdentifier::toString).collect(Collectors.toList());
     try {
-      Files.write(Paths.get(filePath), identifiersString);
+      Files.write(filePath, identifiersString);
     } catch (IOException e) {
       throw new RuntimeException("Failed to write the file:" + filePath, e);
-    }
-  }
-
-  public static class CatalogMigrationResult {
-    private final List<TableIdentifier> registeredTableIdentifiers;
-    private final List<TableIdentifier> failedToRegisterTableIdentifiers;
-    private final List<TableIdentifier> failedToDeleteTableIdentifiers;
-
-    CatalogMigrationResult(
-        List<TableIdentifier> registeredTableIdentifiers,
-        List<TableIdentifier> failedToRegisterTableIdentifiers,
-        List<TableIdentifier> failedToDeleteTableIdentifiers) {
-      this.registeredTableIdentifiers = registeredTableIdentifiers;
-      this.failedToRegisterTableIdentifiers = failedToRegisterTableIdentifiers;
-      this.failedToDeleteTableIdentifiers = failedToDeleteTableIdentifiers;
-    }
-
-    public List<TableIdentifier> registeredTableIdentifiers() {
-      return registeredTableIdentifiers;
-    }
-
-    public List<TableIdentifier> failedToRegisterTableIdentifiers() {
-      return failedToRegisterTableIdentifiers;
-    }
-
-    public List<TableIdentifier> failedToDeleteTableIdentifiers() {
-      return failedToDeleteTableIdentifiers;
-    }
-
-    public static CatalogMigrationResult empty() {
-      return new CatalogMigrationResult(
-          Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
     }
   }
 }

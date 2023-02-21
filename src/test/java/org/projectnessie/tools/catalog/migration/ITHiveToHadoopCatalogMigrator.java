@@ -26,15 +26,13 @@ public class ITHiveToHadoopCatalogMigrator extends AbstractTestCatalogMigrator {
 
   @BeforeAll
   protected static void setup() throws Exception {
-    dryRunFile = outputDir.getAbsolutePath() + "/" + DRY_RUN_FILE;
-    failedIdentifiersFile = outputDir.getAbsolutePath() + "/" + FAILED_IDENTIFIERS_FILE;
+    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
+    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
 
     HiveMetaStoreRunner.startMetastore();
 
-    String warehousePath2 = String.format("file://%s", warehouse2.getAbsolutePath());
-
     catalog1 = HiveMetaStoreRunner.hiveCatalog();
-    catalog2 = createHadoopCatalog(warehousePath2, "hadoop");
+    catalog2 = createHadoopCatalog(warehouse2.toAbsolutePath().toString(), "hadoop");
 
     createNamespaces();
   }

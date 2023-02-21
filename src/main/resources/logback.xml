@@ -17,9 +17,9 @@
 
 -->
 <configuration debug="true">
-  <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator"/>
+  <property name="catalog.migration.log.dir" value="${catalog.migration.log.dir:-logs}"/>
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>catalog_migration.log</file>
+    <file>${catalog.migration.log.dir}/catalog_migration.log</file>
     <append>true</append>
     <encoder>
       <pattern>%date{ISO8601} [%thread] %-5level %logger{36} - %msg%n</pattern>

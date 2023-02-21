@@ -15,18 +15,13 @@
  */
 package org.projectnessie.tools.catalog.migration;
 
-import static com.github.stefanbirkner.systemlambda.SystemLambda.withTextFromSystemIn;
-
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Collections;
-import java.util.List;
 import java.util.stream.IntStream;
-import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
@@ -40,14 +35,14 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
-  protected static @TempDir File warehouse1;
+  protected static @TempDir Path warehouse1;
 
-  protected static @TempDir File warehouse2;
+  protected static @TempDir Path warehouse2;
 
-  protected static @TempDir File outputDir;
+  protected static @TempDir Path outputDir;
 
-  protected static String dryRunFile;
-  protected static String failedIdentifiersFile;
+  protected static Path dryRunFile;
+  protected static Path failedIdentifiersFile;
 
   private static StringWriter stringWriter;
   private static PrintWriter printWriter;
@@ -72,23 +67,19 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @Order(0)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  public void testRegister(boolean deleteSourceTables) throws Exception {
+  public void testRegister(boolean deleteSourceTables) {
 
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result;
-              result = registerAllTables(deleteSourceTables);
+    CatalogMigrationResult result;
+    result = registerAllTables(deleteSourceTables);
 
-              Assertions.assertThat(result.registeredTableIdentifiers())
-                  .containsExactlyInAnyOrder(
-                      TableIdentifier.parse("foo.tbl1"),
-                      TableIdentifier.parse("foo.tbl2"),
-                      TableIdentifier.parse("bar.tbl3"),
-                      TableIdentifier.parse("bar.tbl4"));
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"),
+            TableIdentifier.parse("foo.tbl2"),
+            TableIdentifier.parse("bar.tbl3"),
+            TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     String output = stringWriter.toString();
     Assertions.assertThat(output)
@@ -101,10 +92,10 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n- Successfully %s 4 tables from %s catalog to" + " %s catalog.",
+                "Summary: %n- Successfully %s 4 tables from %s catalog to" + " %s catalog.",
                 operation, catalog1.name(), catalog2.name()));
     Assertions.assertThat(output)
-        .contains(String.format("Details: \n" + "- Successfully %s these tables:\n", operation));
+        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
 
     Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
@@ -117,26 +108,15 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @Order(1)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  public void testRegisterSelectedTables(boolean deleteSourceTables) throws Exception {
+  public void testRegisterSelectedTables(boolean deleteSourceTables) {
     // using `--identifiers` option
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      Collections.singletonList(TableIdentifier.parse("bar.tbl3")),
-                      catalog1,
-                      catalog2,
-                      null,
-                      false,
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers())
-                  .containsExactly(TableIdentifier.parse("bar.tbl3"));
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
+    builder.tableIdentifiers(Collections.singletonList(TableIdentifier.parse("bar.tbl3")));
+    CatalogMigrationResult result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactly(TableIdentifier.parse("bar.tbl3"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     String output = stringWriter.toString();
     Assertions.assertThat(output)
@@ -149,37 +129,26 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n- Successfully %s 1 tables from %s catalog to" + " %s catalog.",
+                "Summary: %n- Successfully %s 1 tables from %s catalog to" + " %s catalog.",
                 operation, catalog1.name(), catalog2.name()));
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Details: \n- Successfully %s these tables:\n" + "[bar.tbl3]", operation));
+                "Details: %n- Successfully %s these tables:%n" + "[bar.tbl3]", operation));
 
     Assertions.assertThat(catalog2.listTables(Namespace.of("foo"))).isEmpty();
     Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
         .containsExactly(TableIdentifier.parse("bar.tbl3"));
 
     // using --identifiers-regex option which matches all the tables starts with "foo."
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      null,
-                      catalog1,
-                      catalog2,
-                      "^foo\\..*",
-                      false,
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers())
-                  .containsExactlyInAnyOrder(
-                      TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    builder = builderWithDefaultArgs(deleteSourceTables);
+    builder.identifierRegex("^foo\\..*");
+    result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     output = stringWriter.toString();
     Assertions.assertThat(output)
@@ -196,10 +165,10 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n- Successfully %s 2 tables from %s catalog to" + " %s catalog.",
+                "Summary: %n- Successfully %s 2 tables from %s catalog to" + " %s catalog.",
                 operation, catalog1.name(), catalog2.name()));
     Assertions.assertThat(output)
-        .contains(String.format("Details: \n" + "- Successfully %s these tables:\n", operation));
+        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
 
     Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
@@ -211,26 +180,15 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @Order(2)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  public void testRegisterError(boolean deleteSourceTables) throws Exception {
+  public void testRegisterError(boolean deleteSourceTables) {
     // use invalid namespace which leads to NoSuchTableException
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      Collections.singletonList(TableIdentifier.parse("dummy.tbl3")),
-                      catalog1,
-                      catalog2,
-                      null,
-                      false,
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers())
-                  .containsExactly(TableIdentifier.parse("dummy.tbl3"));
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
+    builder.tableIdentifiers(Collections.singletonList(TableIdentifier.parse("dummy.tbl3")));
+    CatalogMigrationResult result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers())
+        .containsExactly(TableIdentifier.parse("dummy.tbl3"));
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     String output = stringWriter.toString();
     String operation = deleteSourceTables ? "migration" : "registration";
@@ -239,50 +197,30 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n- Failed to %s 1 tables from %s catalog to %s catalog."
+                "Summary: %n- Failed to %s 1 tables from %s catalog to %s catalog."
                     + " Please check the `catalog_migration.log`",
                 operation, catalog1.name(), catalog2.name()));
     Assertions.assertThat(output)
         .contains(
-            String.format("Details: \n- Failed to %s these tables:\n[dummy.tbl3]", operation));
+            String.format("Details: %n- Failed to %s these tables:%n[dummy.tbl3]", operation));
 
     // try to register same table twice which leads to AlreadyExistsException
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      Collections.singletonList(TableIdentifier.parse("foo.tbl2")),
-                      catalog1,
-                      catalog2,
-                      null,
-                      false,
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers())
-                  .containsExactly(TableIdentifier.parse("foo.tbl2"));
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      Collections.singletonList(TableIdentifier.parse("foo.tbl2")),
-                      catalog1,
-                      catalog2,
-                      null,
-                      false,
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers())
-                  .contains(TableIdentifier.parse("foo.tbl2"));
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    builder = builderWithDefaultArgs(deleteSourceTables);
+    builder.tableIdentifiers(Collections.singletonList(TableIdentifier.parse("foo.tbl2")));
+    result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactly(TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
+
+    builder = builderWithDefaultArgs(deleteSourceTables);
+    builder.tableIdentifiers(Collections.singletonList(TableIdentifier.parse("foo.tbl2")));
+    result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers())
+        .contains(TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
+
     output = stringWriter.toString();
     operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(output).contains(String.format("Identified 1 tables for %s.", operation));
@@ -290,36 +228,25 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n- Failed to %s 1 tables from %s catalog to %s catalog."
+                "Summary: %n- Failed to %s 1 tables from %s catalog to %s catalog."
                     + " Please check the `catalog_migration.log`",
                 operation, catalog1.name(), catalog2.name()));
     Assertions.assertThat(output)
-        .contains(String.format("Details: \n- Failed to %s these tables:\n[foo.tbl2]", operation));
+        .contains(String.format("Details: %n- Failed to %s these tables:%n[foo.tbl2]", operation));
   }
 
   @Order(3)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  public void testRegisterWithFewFailures(boolean deleteSourceTables) throws Exception {
+  public void testRegisterWithFewFailures(boolean deleteSourceTables) {
     // register only foo.tbl2
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      Collections.singletonList(TableIdentifier.parse("foo.tbl2")),
-                      catalog1,
-                      catalog2,
-                      null,
-                      false,
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers())
-                  .containsExactly(TableIdentifier.parse("foo.tbl2"));
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
+    builder.tableIdentifiers(Collections.singletonList(TableIdentifier.parse("foo.tbl2")));
+    CatalogMigrationResult result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactly(TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
     String output = stringWriter.toString();
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(output).contains(String.format("Identified 1 tables for %s.", operation));
@@ -327,12 +254,12 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n- Successfully %s 1 tables from %s catalog to %s catalog.",
+                "Summary: %n- Successfully %s 1 tables from %s catalog to %s catalog.",
                 operation, catalog1.name(), catalog2.name()));
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Details: \n" + "- Successfully %s these tables:\n" + "[foo.tbl2]", operation));
+                "Details: %n" + "- Successfully %s these tables:%n" + "[foo.tbl2]", operation));
 
     if (deleteSourceTables && !(catalog1 instanceof HadoopCatalog)) {
       // create a table with the same name in source catalog which got deleted.
@@ -340,19 +267,15 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     }
 
     // register all the tables from source catalog again
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result = registerAllTables(deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers())
-                  .containsExactlyInAnyOrder(
-                      TableIdentifier.parse("foo.tbl1"),
-                      TableIdentifier.parse("bar.tbl3"),
-                      TableIdentifier.parse("bar.tbl4"));
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers())
-                  .contains(TableIdentifier.parse("foo.tbl2"));
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    result = registerAllTables(deleteSourceTables);
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"),
+            TableIdentifier.parse("bar.tbl3"),
+            TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers())
+        .contains(TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     output = stringWriter.toString();
     operation = deleteSourceTables ? "migration" : "registration";
@@ -362,10 +285,10 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n"
-                    + "- Successfully %s 3 tables from %s catalog to %s catalog.\n"
+                "Summary: %n"
+                    + "- Successfully %s 3 tables from %s catalog to %s catalog.%n"
                     + "- Failed to %s 1 tables from %s catalog to %s catalog. "
-                    + "Please check the `catalog_migration.log` file for the failure reason. \n"
+                    + "Please check the `catalog_migration.log` file for the failure reason. %n"
                     + "Failed identifiers are written into `failed_identifiers.txt`. "
                     + "Retry with that file using `--identifiers-from-file` option "
                     + "if the failure is because of network/connection timeouts.",
@@ -376,9 +299,9 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
                 catalog1.name(),
                 catalog2.name()));
     Assertions.assertThat(output)
-        .contains(String.format("Details: \n" + "- Successfully %s these tables:\n", operation));
+        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
     Assertions.assertThat(output)
-        .contains(String.format("- Failed to %s these tables:\n[foo.tbl2]", ops));
+        .contains(String.format("- Failed to %s these tables:%n[foo.tbl2]", ops));
     Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
@@ -390,25 +313,20 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @Order(4)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  public void testRegisterNoTables(boolean deleteSourceTables) throws Exception {
+  public void testRegisterNoTables(boolean deleteSourceTables) {
     // source catalog is catalog2 which has no tables.
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      null,
-                      catalog2,
-                      catalog1,
-                      null,
-                      false,
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    ImmutableCatalogMigratorParams.Builder builder =
+        ImmutableCatalogMigratorParams.builder()
+            .sourceCatalog(catalog2)
+            .targetCatalog(catalog1)
+            .isDryRun(false)
+            .printWriter(printWriter)
+            .outputDirPath(outputDir.toAbsolutePath().toString())
+            .deleteEntriesFromSourceCatalog(deleteSourceTables);
+    CatalogMigrationResult result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     String output = stringWriter.toString();
     String operation = deleteSourceTables ? "migration" : "registration";
@@ -418,53 +336,18 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @Order(5)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  public void testPrompt(boolean deleteSourceTables) throws Exception {
-    withTextFromSystemIn("no")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result = registerAllTables(deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
-    String output = stringWriter.toString();
-    // should abort
-    Assertions.assertThat(output).contains("Aborting...");
-    // should not have other messages
-    Assertions.assertThat(output).doesNotContain("Summary");
-
-    withTextFromSystemIn("dummy", "yes").execute(() -> registerAllTables(deleteSourceTables));
-    output = stringWriter.toString();
-    Assertions.assertThat(output).contains("Invalid input. Please enter 'yes' or 'no'.");
-    Assertions.assertThat(output).contains("Continuing...");
-  }
-
-  @Order(6)
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
   public void testDryRun(boolean deleteSourceTables) throws Exception {
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result =
-                  registerTables(
-                      null,
-                      catalog1,
-                      catalog2,
-                      null,
-                      true, // enable dry-run
-                      printWriter,
-                      outputDir.getAbsolutePath(),
-                      deleteSourceTables);
-              Assertions.assertThat(result.registeredTableIdentifiers())
-                  .containsExactlyInAnyOrder(
-                      TableIdentifier.parse("foo.tbl1"),
-                      TableIdentifier.parse("foo.tbl2"),
-                      TableIdentifier.parse("bar.tbl3"),
-                      TableIdentifier.parse("bar.tbl4"));
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
+    builder.isDryRun(true);
+    CatalogMigrationResult result = CatalogMigrator.registerTables(builder.build());
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"),
+            TableIdentifier.parse("foo.tbl2"),
+            TableIdentifier.parse("bar.tbl3"),
+            TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     String output = stringWriter.toString();
     // should not prompt for dry run
@@ -476,7 +359,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n"
+                "Summary: %n"
                     + "- Identified 4 tables for %s by dry-run. "
                     + "These identifiers are also written into dry_run_identifiers.txt. "
                     + "You can use this file with `--identifiers-from-file` option.",
@@ -484,104 +367,13 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Details: \n" + "- Identified these tables for %s by dry-run:\n", operation));
-    Assertions.assertThat(new File(dryRunFile).exists()).isTrue();
-    Assertions.assertThat(Files.readAllLines(Paths.get(dryRunFile)))
+                "Details: %n" + "- Identified these tables for %s by dry-run:%n", operation));
+    Assertions.assertThat(Files.exists(dryRunFile)).isTrue();
+    Assertions.assertThat(Files.readAllLines(dryRunFile))
         .containsExactlyInAnyOrder("foo.tbl1", "foo.tbl2", "bar.tbl3", "bar.tbl4");
   }
 
-  @Order(7)
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  public void testInvalidInputs(boolean deleteSourceTables) throws Exception {
-    withTextFromSystemIn("yes")
-        .execute(
-            () ->
-                Assertions.assertThatThrownBy(
-                        () ->
-                            registerTables(
-                                null,
-                                catalog1,
-                                null, // target-catalog is null
-                                null,
-                                false,
-                                printWriter,
-                                outputDir.getAbsolutePath(),
-                                deleteSourceTables))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Invalid target catalog: null"));
-
-    withTextFromSystemIn("yes")
-        .execute(
-            () ->
-                Assertions.assertThatThrownBy(
-                        () ->
-                            registerTables(
-                                null,
-                                null, // source-catalog is null
-                                catalog2,
-                                null,
-                                false,
-                                printWriter,
-                                outputDir.getAbsolutePath(),
-                                deleteSourceTables))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("Invalid source catalog: null"));
-
-    withTextFromSystemIn("yes")
-        .execute(
-            () ->
-                Assertions.assertThatThrownBy(
-                        () ->
-                            registerTables(
-                                null,
-                                catalog2, // source-catalog is same as target catalog
-                                catalog2,
-                                null,
-                                false,
-                                printWriter,
-                                outputDir.getAbsolutePath(),
-                                deleteSourceTables))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("target catalog is same as source catalog"));
-
-    withTextFromSystemIn("yes")
-        .execute(
-            () ->
-                Assertions.assertThatThrownBy(
-                        () ->
-                            registerTables(
-                                Collections.singletonList(TableIdentifier.parse("foo.abc")),
-                                catalog1,
-                                catalog2,
-                                ".*", // both the identifiers and regex is configured.
-                                false,
-                                printWriter,
-                                outputDir.getAbsolutePath(),
-                                deleteSourceTables))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining(
-                        "Both the identifiers list and identifierRegex is configured."));
-
-    withTextFromSystemIn("yes")
-        .execute(
-            () ->
-                Assertions.assertThatThrownBy(
-                        () ->
-                            registerTables(
-                                Collections.singletonList(TableIdentifier.parse("foo.abc")),
-                                catalog1,
-                                catalog2,
-                                null,
-                                false,
-                                null, // printWriter is null.
-                                outputDir.getAbsolutePath(),
-                                deleteSourceTables))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("printWriter is null"));
-  }
-
-  @Order(8)
+  @Order(6)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
@@ -592,16 +384,12 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
                 catalog1.createTable(
                     TableIdentifier.of(Namespace.of("foo"), "tblx" + val), schema));
 
-    withTextFromSystemIn("yes")
-        .execute(
-            () -> {
-              CatalogMigrator.CatalogMigrationResult result;
-              result = registerAllTables(deleteSourceTables);
+    CatalogMigrationResult result;
+    result = registerAllTables(deleteSourceTables);
 
-              Assertions.assertThat(result.registeredTableIdentifiers()).hasSize(244);
-              Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-              Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
-            });
+    Assertions.assertThat(result.registeredTableIdentifiers()).hasSize(244);
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     String operation = deleteSourceTables ? "migration" : "registration";
     String output = stringWriter.toString();
@@ -611,10 +399,10 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(output)
         .contains(
             String.format(
-                "Summary: \n- Successfully %s 244 tables from %s catalog to" + " %s catalog.",
+                "Summary: %n- Successfully %s 244 tables from %s catalog to" + " %s catalog.",
                 operation, catalog1.name(), catalog2.name()));
     Assertions.assertThat(output)
-        .contains(String.format("Details: \n" + "- Successfully %s these tables:\n", operation));
+        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
 
     operation = deleteSourceTables ? "migration" : "registration";
     // validate intermediate output
@@ -629,44 +417,19 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
 
-  private CatalogMigrator.CatalogMigrationResult registerAllTables(boolean deleteSourceTables) {
-    return registerTables(
-        null,
-        catalog1,
-        catalog2,
-        null,
-        false,
-        printWriter,
-        outputDir.getAbsolutePath(),
-        deleteSourceTables);
+  private CatalogMigrationResult registerAllTables(boolean deleteSourceTables) {
+    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
+    return CatalogMigrator.registerTables(builder.build());
   }
 
-  private static CatalogMigrator.CatalogMigrationResult registerTables(
-      List<TableIdentifier> tableIdentifiers,
-      Catalog sourceCatalog,
-      Catalog targetCatalog,
-      String identifierRegex,
-      boolean isDryRun,
-      PrintWriter printWriter,
-      String outputDirPath,
+  private ImmutableCatalogMigratorParams.Builder builderWithDefaultArgs(
       boolean deleteSourceTables) {
-    if (deleteSourceTables) {
-      return CatalogMigrator.migrateTables(
-          tableIdentifiers,
-          sourceCatalog,
-          targetCatalog,
-          identifierRegex,
-          isDryRun,
-          printWriter,
-          outputDirPath);
-    }
-    return CatalogMigrator.registerTables(
-        tableIdentifiers,
-        sourceCatalog,
-        targetCatalog,
-        identifierRegex,
-        isDryRun,
-        printWriter,
-        outputDirPath);
+    return ImmutableCatalogMigratorParams.builder()
+        .sourceCatalog(catalog1)
+        .targetCatalog(catalog2)
+        .isDryRun(false)
+        .printWriter(printWriter)
+        .outputDirPath(outputDir.toAbsolutePath().toString())
+        .deleteEntriesFromSourceCatalog(deleteSourceTables);
   }
 }

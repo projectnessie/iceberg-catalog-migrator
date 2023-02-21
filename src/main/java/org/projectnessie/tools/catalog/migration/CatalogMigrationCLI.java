@@ -49,7 +49,7 @@ import picocli.CommandLine;
     // of sorted order.
     sortOptions = false,
     description =
-        "\nBulk register the iceberg tables from source catalog to target catalog without data copy.\n")
+        "Bulk register the iceberg tables from source catalog to target catalog without data copy.")
 public class CatalogMigrationCLI implements Callable<Integer> {
   @CommandLine.Spec CommandLine.Model.CommandSpec commandSpec;
 
@@ -180,7 +180,7 @@ public class CatalogMigrationCLI implements Callable<Integer> {
             sourceCatalogType.name(),
             sourceCatalogProperties,
             sourceCatalogConf);
-    printWriter.println(String.format("\nConfigured source catalog: %s", sourceCatalogType.name()));
+    printWriter.println(String.format("%nConfigured source catalog: %s", sourceCatalogType.name()));
 
     Configuration targetCatalogConf = new Configuration();
     if (targetHadoopConf != null && !targetHadoopConf.isEmpty()) {
@@ -192,7 +192,7 @@ public class CatalogMigrationCLI implements Callable<Integer> {
             targetCatalogType.name(),
             targetCatalogProperties,
             targetCatalogConf);
-    printWriter.println(String.format("\nConfigured target catalog: %s", targetCatalogType.name()));
+    printWriter.println(String.format("%nConfigured target catalog: %s", targetCatalogType.name()));
 
     List<TableIdentifier> tableIdentifiers = null;
     if (identifiersFromFile != null) {
@@ -212,25 +212,30 @@ public class CatalogMigrationCLI implements Callable<Integer> {
           identifiers.stream().map(TableIdentifier::parse).collect(Collectors.toList());
     }
 
-    if (deleteSourceCatalogTables) {
-      CatalogMigrator.migrateTables(
-          tableIdentifiers,
-          sourceCatalog,
-          targetCatalog,
-          identifiersRegEx,
-          isDryRun,
-          printWriter,
-          outputDirPath);
-    } else {
-      CatalogMigrator.registerTables(
-          tableIdentifiers,
-          sourceCatalog,
-          targetCatalog,
-          identifiersRegEx,
-          isDryRun,
-          printWriter,
-          outputDirPath);
+    if (!isDryRun) {
+      if (deleteSourceCatalogTables) {
+        if (!PromptUtil.proceedForMigration(printWriter)) {
+          return 0;
+        }
+      } else {
+        if (!PromptUtil.proceedForRegistration(printWriter)) {
+          return 0;
+        }
+      }
     }
+
+    ImmutableCatalogMigratorParams params =
+        ImmutableCatalogMigratorParams.builder()
+            .sourceCatalog(sourceCatalog)
+            .targetCatalog(targetCatalog)
+            .tableIdentifiers(tableIdentifiers)
+            .identifierRegex(identifiersRegEx)
+            .deleteEntriesFromSourceCatalog(deleteSourceCatalogTables)
+            .isDryRun(isDryRun)
+            .outputDirPath(outputDirPath)
+            .printWriter(printWriter)
+            .build();
+    CatalogMigrator.registerTables(params);
     return 0;
   }
 

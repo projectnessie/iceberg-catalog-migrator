@@ -40,11 +40,14 @@ dependencies {
   implementation(libs.hadoop.common)
   implementation(libs.aws.sdk)
 
+  annotationProcessor(libs.immutables)
+  compileOnly(libs.immutables)
+
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
   testImplementation(libs.assertj)
-  testImplementation(libs.system.lambda)
+  testImplementation(libs.mockito)
 
   // for integration tests
   testImplementation(
@@ -83,7 +86,7 @@ dependencies {
   nessieQuarkusServer("org.projectnessie:nessie-quarkus:${libs.versions.nessie.get()}:runner")
 }
 
-group = "org.projectnessie"
+group = "org.projectnessie.tools.catalog.migration"
 
 version = file("version.txt").readText().trim()
 

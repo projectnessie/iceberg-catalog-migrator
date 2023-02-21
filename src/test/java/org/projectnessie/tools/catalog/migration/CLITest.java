@@ -18,18 +18,28 @@ package org.projectnessie.tools.catalog.migration;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class CLITest {
+
+  protected static @TempDir Path logDir;
+
+  @BeforeAll
+  protected static void initLogDir() {
+    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
+  }
 
   private static Stream<Arguments> optionErrors() {
     return Stream.of(
