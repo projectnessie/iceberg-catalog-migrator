@@ -27,7 +27,7 @@ Need to have java installed in your machine(JDK11 or later version) to use this 
 
 Below is the CLI syntax:
 ```
-$ java -jar iceberg-catalog-migrator-0.1.0-SNAPSHOT.jar -h
+$ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar -h
 Usage: register [-hV] [--delete-source-tables] [--dry-run] [--identifiers-from-file=<identifiersFromFile>] [--identifiers-regex=<identifiersRegEx>]
                 [--output-dir=<outputDirPath>] --source-catalog-type=<sourceCatalogType> [--source-custom-catalog-impl=<sourceCustomCatalogImpl>]
                 --target-catalog-type=<targetCatalogType> [--target-custom-catalog-impl=<targetCustomCatalogImpl>] [--identifiers=<identifiers>[,

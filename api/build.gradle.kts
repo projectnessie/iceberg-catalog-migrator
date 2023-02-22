@@ -14,4 +14,25 @@
  * limitations under the License.
  */
 
-extra["versionGoogleJavaFormat"] = libs.versions.googleJavaFormat.get()
+plugins {
+  `java-library`
+  `maven-publish`
+  BuildSupport
+}
+
+dependencies {
+  implementation(libs.guava)
+  implementation(libs.slf4j)
+  implementation(libs.logback.classic)
+  implementation(libs.logback.core)
+  implementation(libs.iceberg.spark.runtime)
+
+  annotationProcessor(libs.immutables)
+  compileOnly(libs.immutables)
+
+  testImplementation(libs.junit.jupiter.params)
+  testImplementation(libs.junit.jupiter.api)
+  testImplementation(libs.junit.jupiter.engine)
+  testImplementation(libs.assertj)
+  testImplementation(libs.hadoop.common)
+}

@@ -13,5 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.projectnessie.tools.catalog.migration.api.test;
 
-extra["versionGoogleJavaFormat"] = libs.versions.googleJavaFormat.get()
+import org.apache.iceberg.hive.HiveCatalog;
+import org.apache.iceberg.hive.HiveMetastoreTest;
+
+public class HiveMetaStoreRunner extends HiveMetastoreTest {
+
+  // Expose the catalog for tests
+  public static HiveCatalog hiveCatalog() {
+    return HiveMetastoreTest.catalog;
+  }
+}
