@@ -16,6 +16,7 @@
 package org.projectnessie.tools.catlog.migration.cli;
 
 import com.google.common.collect.Lists;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -81,7 +82,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegister(boolean deleteSourceTables) throws Exception {
-    RunCLI run = RunCLI.runWithMockedPrompts(registerAllTablesArgs(deleteSourceTables));
+    RunCLI run = registerTablesCLI(deleteSourceTables, registerAllTablesArgs());
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
@@ -528,7 +529,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .containsExactlyInAnyOrder("foo.tbl1", "foo.tbl2", "bar.tbl3", "bar.tbl4");
   }
 
-  private static String[] registerAllTablesArgs(boolean deleteSourceTables) {
+  private static String[] registerAllTablesArgs() {
     ArrayList<String> args =
         Lists.newArrayList(
             "--source-catalog-type",
@@ -541,20 +542,22 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             targetCatalogProperties,
             "--output-dir",
             outputDir.toAbsolutePath().toString());
-    if (deleteSourceTables) {
-      args.add("--delete-source-tables");
-    }
     return args.toArray(new String[0]);
   }
 
   private static RunCLI registerTablesCLI(boolean deleteSourceTables, String... args)
       throws Exception {
-    if (!deleteSourceTables) {
-      return RunCLI.runWithMockedPrompts(args);
+    ByteArrayInputStream input = new ByteArrayInputStream("yes\n".getBytes());
+    try {
+      if (!deleteSourceTables) {
+        return RunCLI.runWithInput(input, args);
+      }
+      List<String> argsList = Lists.newArrayList(args);
+      argsList.add("--delete-source-tables");
+      return RunCLI.runWithInput(input, argsList.toArray(new String[0]));
+    } finally {
+      input.close();
     }
-    List<String> argsList = Lists.newArrayList(args);
-    argsList.add("--delete-source-tables");
-    return RunCLI.runWithMockedPrompts(argsList.toArray(new String[0]));
   }
 
   protected static String catalogType(Catalog catalog) {

@@ -44,7 +44,6 @@ dependencies {
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
   testImplementation(libs.assertj)
-  testImplementation(libs.mockito)
 
   testImplementation(project(":iceberg-catalog-migrator-api-test"))
 
@@ -98,7 +97,7 @@ val processResources =
     )
   }
 
-val mainClassName = "org.projectnessie.tools.catalog.migration.CatalogMigrationCLI"
+val mainClassName = "org.projectnessie.tools.catalog.migration.cli.CatalogMigrationCLI"
 
 val shadowJar = tasks.named<ShadowJar>("shadowJar")
 

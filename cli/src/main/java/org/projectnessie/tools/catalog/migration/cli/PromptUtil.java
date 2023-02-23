@@ -15,6 +15,7 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Scanner;
 
@@ -22,40 +23,42 @@ public final class PromptUtil {
 
   private PromptUtil() {}
 
-  public static boolean proceedForRegistration(PrintWriter printWriter) {
-    String warning =
-        String.format(
-            "%n[WARNING]%n"
-                + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-                + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
-                + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
-                + "catalog%n"
-                + "%n"
-                + "\tb) After the registration, successfully registered tables will be present in both source and target "
-                + "catalog. "
-                + "%n\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
-                + "loss of data, and table corruption. "
-                + "%n\tUse `--delete-source-tables` option to automatically delete the table from source catalog after "
-                + "migration.");
-    return proceed(warning, printWriter);
+  public static final String WARNING_FOR_REGISTRATION =
+      String.format(
+          "%n[WARNING]%n"
+              + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
+              + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
+              + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
+              + "catalog%n"
+              + "%n"
+              + "\tb) After the registration, successfully registered tables will be present in both source and target "
+              + "catalog. "
+              + "%n\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
+              + "loss of data, and table corruption. "
+              + "%n\tUse `--delete-source-tables` option to automatically delete the table from source catalog after "
+              + "migration.");
+
+  public static final String WARNING_FOR_MIGRATION =
+      String.format(
+          "%n[WARNING]%n"
+              + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
+              + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
+              + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
+              + "catalog%n"
+              + "%n"
+              + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
+              + "%n\tand can only be accessed from the target catalog.");
+
+  public static boolean proceedForRegistration(InputStream input, PrintWriter printWriter) {
+    return proceed(input, WARNING_FOR_REGISTRATION, printWriter);
   }
 
-  public static boolean proceedForMigration(PrintWriter printWriter) {
-    String warning =
-        String.format(
-            "%n[WARNING]%n"
-                + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-                + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
-                + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
-                + "catalog%n"
-                + "%n"
-                + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
-                + "%n\tand can only be accessed from the target catalog.");
-    return proceed(warning, printWriter);
+  public static boolean proceedForMigration(InputStream input, PrintWriter printWriter) {
+    return proceed(input, WARNING_FOR_MIGRATION, printWriter);
   }
 
-  private static boolean proceed(String warning, PrintWriter printWriter) {
-    try (Scanner scanner = new Scanner(System.in)) {
+  private static boolean proceed(InputStream inputStream, String warning, PrintWriter printWriter) {
+    try (Scanner scanner = new Scanner(inputStream)) {
       printWriter.println(warning);
 
       while (true) {

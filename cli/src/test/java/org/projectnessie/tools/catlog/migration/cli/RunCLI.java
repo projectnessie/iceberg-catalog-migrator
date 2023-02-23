@@ -15,16 +15,12 @@
  */
 package org.projectnessie.tools.catlog.migration.cli;
 
-import static org.mockito.Mockito.mockStatic;
-
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.mockito.MockedStatic;
 import org.projectnessie.tools.catalog.migration.cli.CatalogMigrationCLI;
-import org.projectnessie.tools.catalog.migration.cli.PromptUtil;
 import picocli.CommandLine;
 
 /** Helper class for tests. */
@@ -46,9 +42,24 @@ public final class RunCLI {
     return run(args.toArray(new String[0]));
   }
 
-  private static int runMain(PrintWriter out, PrintWriter err, String... arguments) {
+  public static RunCLI run(String... args) throws Exception {
+    return runWithInput(System.in, args);
+  }
+
+  public static RunCLI runWithInput(InputStream inputStream, String... args) throws Exception {
+    try (StringWriter out = new StringWriter();
+        PrintWriter outWriter = new PrintWriter(out);
+        StringWriter err = new StringWriter();
+        PrintWriter errWriter = new PrintWriter(err)) {
+      int exitCode = runMain(outWriter, errWriter, inputStream, args);
+      return new RunCLI(exitCode, out.toString(), err.toString(), args);
+    }
+  }
+
+  private static int runMain(
+      PrintWriter out, PrintWriter err, InputStream inputStream, String... arguments) {
     CommandLine commandLine =
-        new CommandLine(new CatalogMigrationCLI())
+        new CommandLine(new CatalogMigrationCLI(inputStream))
             .setExecutionExceptionHandler(
                 (ex, cmd, parseResult) -> {
                   cmd.getErr().println(cmd.getColorScheme().richStackTraceString(ex));
@@ -67,35 +78,6 @@ public final class RunCLI {
     } finally {
       commandLine.getOut().flush();
       commandLine.getErr().flush();
-    }
-  }
-
-  public static RunCLI run(String... args) throws Exception {
-    try (StringWriter out = new StringWriter();
-        PrintWriter outWriter = new PrintWriter(out);
-        StringWriter err = new StringWriter();
-        PrintWriter errWriter = new PrintWriter(err)) {
-      int exitCode = runMain(outWriter, errWriter, args);
-      return new RunCLI(exitCode, out.toString(), err.toString(), args);
-    }
-  }
-
-  static RunCLI runWithMockedPrompts(String... args) throws Exception {
-    try (StringWriter out = new StringWriter();
-        PrintWriter outWriter = new PrintWriter(out);
-        StringWriter err = new StringWriter();
-        PrintWriter errWriter = new PrintWriter(err)) {
-
-      AtomicInteger exitCode = new AtomicInteger();
-      try (MockedStatic<PromptUtil> mocked = mockStatic(PromptUtil.class)) {
-
-        // To avoid manipulating `System.in`, mock the APIs that use `System.in`
-        mocked.when(() -> PromptUtil.proceedForMigration(outWriter)).thenReturn(true);
-        mocked.when(() -> PromptUtil.proceedForRegistration(outWriter)).thenReturn(true);
-
-        exitCode.set(runMain(outWriter, errWriter, args));
-        return new RunCLI(exitCode.get(), out.toString(), err.toString(), args);
-      }
     }
   }
 

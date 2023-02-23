@@ -16,6 +16,7 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -76,14 +77,14 @@ public class CatalogMigrationCLI implements Callable<Integer> {
       description =
           "optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when "
               + "using an Iceberg FileIO.")
-  Map<String, String> sourceHadoopConf = new HashMap<>();
+  private Map<String, String> sourceHadoopConf = new HashMap<>();
 
   @CommandLine.Option(
       names = {"--source-custom-catalog-impl"},
       description =
           "optional fully qualified class name of the custom catalog implementation of the source catalog. Required "
               + "when the catalog type is CUSTOM.")
-  String sourceCustomCatalogImpl;
+  private String sourceCustomCatalogImpl;
 
   @CommandLine.Option(
       names = "--target-catalog-type",
@@ -106,14 +107,14 @@ public class CatalogMigrationCLI implements Callable<Integer> {
       description =
           "optional target catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when "
               + "using an Iceberg FileIO.")
-  Map<String, String> targetHadoopConf = new HashMap<>();
+  private Map<String, String> targetHadoopConf = new HashMap<>();
 
   @CommandLine.Option(
       names = {"--target-custom-catalog-impl"},
       description =
           "optional fully qualified class name of the custom catalog implementation of the target catalog. Required "
               + "when the catalog type is CUSTOM.")
-  String targetCustomCatalogImpl;
+  private String targetCustomCatalogImpl;
 
   @CommandLine.Option(
       names = {"--identifiers"},
@@ -122,21 +123,21 @@ public class CatalogMigrationCLI implements Callable<Integer> {
           "optional selective list of identifiers to register. If not specified, all the tables will be registered. "
               + "Use this when there are few identifiers that need to be registered. For a large number of identifiers, "
               + "use the `--identifiers-from-file` or `--identifiers-regex` option.")
-  List<String> identifiers = new ArrayList<>();
+  private List<String> identifiers = new ArrayList<>();
 
   @CommandLine.Option(
       names = {"--identifiers-from-file"},
       description =
           "optional text file path that contains a list of table identifiers (one per line) to register. Should not be "
               + "used with `--identifiers` or `--identifiers-regex` option.")
-  String identifiersFromFile;
+  private String identifiersFromFile;
 
   @CommandLine.Option(
       names = {"--identifiers-regex"},
       description =
           "optional regular expression pattern used to register only the tables whose identifiers match this pattern. "
               + "Should not be used with `--identifiers` or '--identifiers-from-file' option.")
-  String identifiersRegEx;
+  private String identifiersRegEx;
 
   @CommandLine.Option(
       names = {"--dry-run"},
@@ -158,10 +159,20 @@ public class CatalogMigrationCLI implements Callable<Integer> {
           "optional local output directory path to write CLI output files like `failed_identifiers.txt`, "
               + "`failed_to_delete_at_source.txt`, `dry_run_identifiers.txt`. "
               + "Uses the present working directory if not specified.")
-  String outputDirPath;
+  private String outputDirPath;
+
+  private final InputStream input;
+
+  public CatalogMigrationCLI(InputStream input) {
+    this.input = input;
+  }
 
   public static void main(String... args) {
-    CommandLine commandLine = new CommandLine(new CatalogMigrationCLI());
+    runWithInput(System.in, args);
+  }
+
+  public static void runWithInput(InputStream input, String... args) {
+    CommandLine commandLine = new CommandLine(new CatalogMigrationCLI(input));
     commandLine.setUsageHelpWidth(150);
     int exitCode = commandLine.execute(args);
     System.exit(exitCode);
@@ -216,11 +227,11 @@ public class CatalogMigrationCLI implements Callable<Integer> {
 
     if (!isDryRun) {
       if (deleteSourceCatalogTables) {
-        if (!PromptUtil.proceedForMigration(printWriter)) {
+        if (!PromptUtil.proceedForMigration(input, printWriter)) {
           return 0;
         }
       } else {
-        if (!PromptUtil.proceedForRegistration(printWriter)) {
+        if (!PromptUtil.proceedForRegistration(input, printWriter)) {
           return 0;
         }
       }
