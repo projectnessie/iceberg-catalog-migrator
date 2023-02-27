@@ -15,9 +15,6 @@
  */
 package org.projectnessie.tools.catalog.migration.api.test;
 
-import static org.projectnessie.tools.catalog.migration.api.CatalogMigrator.DRY_RUN_FILE;
-import static org.projectnessie.tools.catalog.migration.api.CatalogMigrator.FAILED_IDENTIFIERS_FILE;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
@@ -26,9 +23,6 @@ public class ITHiveToHadoopCatalogMigrator extends AbstractTestCatalogMigrator {
 
   @BeforeAll
   protected static void setup() throws Exception {
-    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
-    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
-
     HiveMetaStoreRunner.startMetastore();
 
     catalog1 = HiveMetaStoreRunner.hiveCatalog();

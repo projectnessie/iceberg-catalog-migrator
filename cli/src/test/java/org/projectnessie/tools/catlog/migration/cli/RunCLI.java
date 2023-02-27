@@ -15,7 +15,6 @@
  */
 package org.projectnessie.tools.catlog.migration.cli;
 
-import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
@@ -43,23 +42,22 @@ public final class RunCLI {
   }
 
   public static RunCLI run(String... args) throws Exception {
-    return runWithInput(System.in, args);
-  }
-
-  public static RunCLI runWithInput(InputStream inputStream, String... args) throws Exception {
     try (StringWriter out = new StringWriter();
         PrintWriter outWriter = new PrintWriter(out);
         StringWriter err = new StringWriter();
         PrintWriter errWriter = new PrintWriter(err)) {
-      int exitCode = runMain(outWriter, errWriter, inputStream, args);
+      int exitCode = runMain(outWriter, errWriter, args);
       return new RunCLI(exitCode, out.toString(), err.toString(), args);
     }
   }
 
-  private static int runMain(
-      PrintWriter out, PrintWriter err, InputStream inputStream, String... arguments) {
+  private static int runMain(PrintWriter out, PrintWriter err, String... arguments) {
+    CatalogMigrationCLI cli = new CatalogMigrationCLI();
+    // disable prompts for tests
+    cli.disablePrompts();
+
     CommandLine commandLine =
-        new CommandLine(new CatalogMigrationCLI(inputStream))
+        new CommandLine(cli)
             .setExecutionExceptionHandler(
                 (ex, cmd, parseResult) -> {
                   cmd.getErr().println(cmd.getColorScheme().richStackTraceString(ex));
@@ -96,7 +94,7 @@ public final class RunCLI {
   @Override
   public String toString() {
     return String.format(
-        "org.projectnessie.tools.catalog.migration"
+        "org.projectnessie.tools.catalog.migration.cli"
             + ".RunCLI{args=%s%nexitCode=%d%n%nstdout:%n%s%n%nstderr:%n%s",
         Arrays.toString(args), exitCode, out, err);
   }

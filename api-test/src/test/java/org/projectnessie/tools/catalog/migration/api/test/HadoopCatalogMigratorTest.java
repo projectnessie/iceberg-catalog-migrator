@@ -15,9 +15,6 @@
  */
 package org.projectnessie.tools.catalog.migration.api.test;
 
-import static org.projectnessie.tools.catalog.migration.api.CatalogMigrator.DRY_RUN_FILE;
-import static org.projectnessie.tools.catalog.migration.api.CatalogMigrator.FAILED_IDENTIFIERS_FILE;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 
@@ -25,9 +22,6 @@ public class HadoopCatalogMigratorTest extends AbstractTestCatalogMigrator {
 
   @BeforeAll
   protected static void setup() {
-    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
-    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
-
     catalog1 = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "catalog1");
     catalog2 = createHadoopCatalog(warehouse2.toAbsolutePath().toString(), "catalog2");
 

@@ -23,8 +23,7 @@ plugins {
 dependencies {
   implementation(libs.guava)
   implementation(libs.slf4j)
-  implementation(libs.logback.classic)
-  implementation(libs.logback.core)
+  runtimeOnly(libs.logback.classic)
   implementation(libs.iceberg.spark.runtime)
 
   annotationProcessor(libs.immutables)

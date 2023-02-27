@@ -24,8 +24,7 @@ plugins {
 dependencies {
   implementation(libs.slf4j)
   implementation(libs.picocli)
-  implementation(libs.logback.classic)
-  implementation(libs.logback.core)
+  runtimeOnly(libs.logback.classic)
   implementation(libs.hadoop.common)
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.junit.jupiter.api)

@@ -15,8 +15,6 @@
  */
 package org.projectnessie.tools.catalog.migration.api.test;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
@@ -74,12 +72,6 @@ public abstract class AbstractTest {
 
     ((SupportsNamespaces) catalog2).dropNamespace(Namespace.of("foo"));
     ((SupportsNamespaces) catalog2).dropNamespace(Namespace.of("bar"));
-  }
-
-  protected static void deleteFileIfExists(Path filePath) throws IOException {
-    if (Files.exists(filePath)) {
-      Files.delete(filePath);
-    }
   }
 
   protected static Catalog createHadoopCatalog(String warehousePath, String name) {

@@ -16,13 +16,13 @@
 package org.projectnessie.tools.catlog.migration.cli;
 
 import com.google.common.collect.Lists;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.apache.iceberg.aws.dynamodb.DynamoDbCatalog;
 import org.apache.iceberg.aws.glue.GlueCatalog;
 import org.apache.iceberg.catalog.Catalog;
@@ -75,8 +75,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     catalog2.createTable(TableIdentifier.of(Namespace.of("bar"), "tblx"), schema).refresh();
 
     dropTables();
-    deleteFileIfExists(dryRunFile);
-    deleteFileIfExists(failedIdentifiersFile);
+    Files.deleteIfExists(dryRunFile);
+    Files.deleteIfExists(failedIdentifiersFile);
   }
 
   @ParameterizedTest
@@ -228,10 +228,6 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .contains(
             "User has not specified the table identifiers. Selecting all the tables from all the namespaces "
                 + "from the source catalog which matches the regex pattern:^foo\\..*");
-    Assertions.assertThat(run.getOut())
-        .contains(
-            "Collecting all the tables from all the namespaces of source catalog "
-                + "which matches the regex pattern:^foo\\..*");
     operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
         .contains(String.format("Identified 2 tables for %s.", operation));
@@ -529,6 +525,45 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .containsExactlyInAnyOrder("foo.tbl1", "foo.tbl2", "bar.tbl3", "bar.tbl4");
   }
 
+  @Order(6)
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
+    // additionally create 240 tables along with 4 tables created in beforeEach()
+    IntStream.range(0, 240)
+        .forEach(
+            val ->
+                catalog1.createTable(
+                    TableIdentifier.of(Namespace.of("foo"), "tblx" + val), schema));
+
+    RunCLI run = registerTablesCLI(deleteSourceTables, registerAllTablesArgs());
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    String operation = deleteSourceTables ? "migration" : "registration";
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Identified 244 tables for %s.", operation));
+    operation = deleteSourceTables ? "migrated" : "registered";
+    Assertions.assertThat(run.getOut())
+        .contains(
+            String.format(
+                "Summary: %n- Successfully %s 244 tables from %s catalog to" + " %s catalog.",
+                operation, sourceCatalogType, targetCatalogType));
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
+
+    operation = deleteSourceTables ? "migration" : "registration";
+    // validate intermediate output
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Attempted %s for 100 tables out of 244 tables.", operation));
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Attempted %s for 200 tables out of 244 tables.", operation));
+
+    Assertions.assertThat(catalog2.listTables(Namespace.of("foo"))).hasSize(242);
+    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+  }
+
   private static String[] registerAllTablesArgs() {
     ArrayList<String> args =
         Lists.newArrayList(
@@ -547,17 +582,12 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
   private static RunCLI registerTablesCLI(boolean deleteSourceTables, String... args)
       throws Exception {
-    ByteArrayInputStream input = new ByteArrayInputStream("yes\n".getBytes());
-    try {
-      if (!deleteSourceTables) {
-        return RunCLI.runWithInput(input, args);
-      }
-      List<String> argsList = Lists.newArrayList(args);
-      argsList.add("--delete-source-tables");
-      return RunCLI.runWithInput(input, argsList.toArray(new String[0]));
-    } finally {
-      input.close();
+    if (!deleteSourceTables) {
+      return RunCLI.run(args);
     }
+    List<String> argsList = Lists.newArrayList(args);
+    argsList.add("--delete-source-tables");
+    return RunCLI.run(argsList.toArray(new String[0]));
   }
 
   protected static String catalogType(Catalog catalog) {

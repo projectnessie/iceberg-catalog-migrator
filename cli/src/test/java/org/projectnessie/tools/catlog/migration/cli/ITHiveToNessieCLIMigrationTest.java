@@ -20,6 +20,7 @@ import static org.projectnessie.tools.catalog.migration.api.CatalogMigrator.FAIL
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
@@ -54,5 +55,12 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
   protected static void tearDown() throws Exception {
     dropNamespaces();
     HiveMetaStoreRunner.stopMetastore();
+  }
+
+  // disable large table test for IT to save CI time. It will be executed only for UT.
+  @Override
+  @Disabled
+  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
+    super.testRegisterLargeNumberOfTables(deleteSourceTables);
   }
 }

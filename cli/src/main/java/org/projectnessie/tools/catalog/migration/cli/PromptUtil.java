@@ -15,9 +15,8 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
-import java.io.InputStream;
+import java.io.Console;
 import java.io.PrintWriter;
-import java.util.Scanner;
 
 public final class PromptUtil {
 
@@ -49,32 +48,31 @@ public final class PromptUtil {
               + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
               + "%n\tand can only be accessed from the target catalog.");
 
-  public static boolean proceedForRegistration(InputStream input, PrintWriter printWriter) {
-    return proceed(input, WARNING_FOR_REGISTRATION, printWriter);
+  public static boolean proceedForRegistration(PrintWriter printWriter) {
+    return proceed(WARNING_FOR_REGISTRATION, printWriter);
   }
 
-  public static boolean proceedForMigration(InputStream input, PrintWriter printWriter) {
-    return proceed(input, WARNING_FOR_MIGRATION, printWriter);
+  public static boolean proceedForMigration(PrintWriter printWriter) {
+    return proceed(WARNING_FOR_MIGRATION, printWriter);
   }
 
-  private static boolean proceed(InputStream inputStream, String warning, PrintWriter printWriter) {
-    try (Scanner scanner = new Scanner(inputStream)) {
-      printWriter.println(warning);
+  private static boolean proceed(String warning, PrintWriter printWriter) {
+    printWriter.println(warning);
 
-      while (true) {
-        printWriter.println(
-            "Have you read the above warnings and are you sure you want to continue? (yes/no):");
-        String input = scanner.nextLine();
+    Console console = System.console();
+    while (true) {
+      printWriter.println(
+          "Have you read the above warnings and are you sure you want to continue? (yes/no):");
+      String input = console.readLine();
 
-        if (input.equalsIgnoreCase("yes")) {
-          printWriter.println("Continuing...");
-          return true;
-        } else if (input.equalsIgnoreCase("no")) {
-          printWriter.println("Aborting...");
-          return false;
-        } else {
-          printWriter.println("Invalid input. Please enter 'yes' or 'no'.");
-        }
+      if (input.equalsIgnoreCase("yes")) {
+        printWriter.println("Continuing...");
+        return true;
+      } else if (input.equalsIgnoreCase("no")) {
+        printWriter.println("Aborting...");
+        return false;
+      } else {
+        printWriter.println("Invalid input. Please enter 'yes' or 'no'.");
       }
     }
   }
