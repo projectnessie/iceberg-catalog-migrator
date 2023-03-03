@@ -23,12 +23,12 @@ plugins {
 dependencies {
   implementation(libs.guava)
   implementation(libs.slf4j)
-  runtimeOnly(libs.logback.classic)
   implementation(libs.iceberg.spark.runtime)
 
   annotationProcessor(libs.immutables)
   compileOnly(libs.immutables)
 
+  testRuntimeOnly(libs.logback.classic)
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)

@@ -24,7 +24,6 @@ plugins {
 dependencies {
   implementation(libs.slf4j)
   implementation(libs.picocli)
-  runtimeOnly(libs.logback.classic)
   implementation(libs.hadoop.common)
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.junit.jupiter.api)
@@ -32,6 +31,7 @@ dependencies {
 
   testImplementation(project(":iceberg-catalog-migrator-api"))
 
+  testRuntimeOnly(libs.logback.classic)
   testImplementation(libs.assertj)
   testImplementation(libs.junit.jupiter.params)
   implementation(libs.junit.jupiter.engine)

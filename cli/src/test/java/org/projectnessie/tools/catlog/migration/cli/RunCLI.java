@@ -52,12 +52,8 @@ public final class RunCLI {
   }
 
   private static int runMain(PrintWriter out, PrintWriter err, String... arguments) {
-    CatalogMigrationCLI cli = new CatalogMigrationCLI();
-    // disable prompts for tests
-    cli.disablePrompts();
-
     CommandLine commandLine =
-        new CommandLine(cli)
+        new CommandLine(new CatalogMigrationCLI())
             .setExecutionExceptionHandler(
                 (ex, cmd, parseResult) -> {
                   cmd.getErr().println(cmd.getColorScheme().richStackTraceString(ex));

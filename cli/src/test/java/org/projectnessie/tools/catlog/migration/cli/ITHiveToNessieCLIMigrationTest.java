@@ -15,8 +15,8 @@
  */
 package org.projectnessie.tools.catlog.migration.cli;
 
-import static org.projectnessie.tools.catalog.migration.api.CatalogMigrator.DRY_RUN_FILE;
-import static org.projectnessie.tools.catalog.migration.api.CatalogMigrator.FAILED_IDENTIFIERS_FILE;
+import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.DRY_RUN_FILE;
+import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.FAILED_IDENTIFIERS_FILE;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

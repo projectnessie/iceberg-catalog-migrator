@@ -15,12 +15,10 @@
  */
 package org.projectnessie.tools.catlog.migration.cli;
 
-import static java.util.Collections.singletonList;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import com.google.common.collect.Lists;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
@@ -44,70 +42,52 @@ public class CLITest {
   private static Stream<Arguments> optionErrors() {
     return Stream.of(
         // no arguments
-        arguments(
-            Collections.emptyList(),
-            "Missing required options: '--source-catalog-type=<sourceCatalogType>', "
-                + "'--source-catalog-properties=<String=String>', '--target-catalog-type=<targetCatalogType>', "
-                + "'--target-catalog-properties=<String=String>'"),
+        arguments(Lists.newArrayList(), "Missing required option: '--output-dir=<outputDirPath>'"),
         // missing required arguments
         arguments(
-            singletonList(""),
-            "Missing required options: '--source-catalog-type=<sourceCatalogType>', "
-                + "'--source-catalog-properties=<String=String>', '--target-catalog-type=<targetCatalogType>', "
-                + "'--target-catalog-properties=<String=String>'"),
+            Lists.newArrayList(""), "Missing required option: '--output-dir=<outputDirPath>'"),
         // missing required arguments
         arguments(
-            Arrays.asList("--source-catalog-type", "GLUE"),
-            "Missing required options: '--source-catalog-properties=<String=String>', "
-                + "'--target-catalog-type=<targetCatalogType>', '--target-catalog-properties=<String=String>'"),
+            Lists.newArrayList("--source-catalog-type", "GLUE"),
+            "Missing required option: '--output-dir=<outputDirPath>'"),
         // missing required arguments
         arguments(
-            Arrays.asList(
+            Lists.newArrayList(
                 "--source-catalog-type",
                 "HIVE",
                 "--source-catalog-properties",
                 "properties1=ab",
                 "--target-catalog-type",
-                "NESSIE"),
-            "Missing required option: '--target-catalog-properties=<String=String>'"),
+                "NESSIE",
+                "--output-dir",
+                "path"),
+            "Error: Missing required argument(s): --target-catalog-properties=<String=String>"),
         // missing required arguments
         arguments(
-            Arrays.asList(
+            Lists.newArrayList(
                 "--source-catalog-type",
                 "HIVE",
                 "--source-catalog-properties",
                 "properties1=ab",
+                "--target-catalog-properties",
+                "properties2=cd",
+                "--output-dir",
+                "path"),
+            "Error: Missing required argument(s): --target-catalog-type=<type>"),
+        // missing required arguments
+        arguments(
+            Lists.newArrayList(
+                "--source-catalog-type",
+                "HIVE",
+                "--source-catalog-properties",
+                "properties1=ab",
+                "--target-catalog-type",
+                "NESSIE",
                 "--target-catalog-properties",
                 "properties2=cd"),
-            "Missing required option: '--target-catalog-type=<targetCatalogType>'"));
-  }
-
-  @ParameterizedTest
-  @MethodSource("optionErrors")
-  @Order(0)
-  public void testOptionErrors(List<String> args, String expectedMessage) throws Exception {
-    RunCLI run = RunCLI.run(args);
-
-    Assertions.assertThat(run.getExitCode()).isEqualTo(2);
-    Assertions.assertThat(run.getErr()).contains(expectedMessage);
-  }
-
-  private static Stream<Arguments> invalidArgs() {
-    return Stream.of(
+            "Missing required option: '--output-dir=<outputDirPath>'"),
         arguments(
-            Arrays.asList(
-                "--source-catalog-type",
-                "HADOOP",
-                "--source-catalog-properties",
-                "k1=v1,k2=v2",
-                "--target-catalog-type",
-                "HIVE",
-                "--target-catalog-properties",
-                "k3=v3, k4=v4"),
-            "java.lang.IllegalArgumentException: Cannot initialize HadoopCatalog "
-                + "because warehousePath must not be null or empty"),
-        arguments(
-            Arrays.asList(
+            Lists.newArrayList(
                 "--source-catalog-type",
                 "HADOOP",
                 "--source-catalog-properties",
@@ -121,25 +101,12 @@ public class CLITest {
                 "--identifiers-from-file",
                 "file.txt",
                 "--identifiers-regex",
-                "^foo\\."),
-            "java.lang.IllegalArgumentException: All the three identifier options (`--identifiers`, "
-                + "`--identifiers-from-file`, `--identifiers-regex`) are configured. Please use only one of them."),
+                "^foo\\.",
+                "--output-dir",
+                "path"),
+            "Error: --identifiers=<identifiers>, --identifiers-from-file=<identifiersFromFile>, --identifiers-regex=<identifiersRegEx> are mutually exclusive (specify only one)"),
         arguments(
-            Arrays.asList(
-                "--source-catalog-type",
-                "HADOOP",
-                "--source-catalog-properties",
-                "k1=v1,k2=v2",
-                "--target-catalog-type",
-                "HIVE",
-                "--target-catalog-properties",
-                "k3=v3, k4=v4",
-                "--identifiers-from-file",
-                "file.txt"),
-            "java.lang.IllegalArgumentException: "
-                + "File specified in `--identifiers-from-file` option does not exist."),
-        arguments(
-            Arrays.asList(
+            Lists.newArrayList(
                 "--source-catalog-type",
                 "HADOOP",
                 "--source-catalog-properties",
@@ -151,11 +118,12 @@ public class CLITest {
                 "--identifiers",
                 "foo.tbl",
                 "--identifiers-from-file",
-                "file.txt"),
-            "java.lang.IllegalArgumentException: Both `--identifiers` and `--identifiers-from-file` "
-                + "options are configured. Please use only one of them."),
+                "file.txt",
+                "--output-dir",
+                "path"),
+            "Error: --identifiers=<identifiers>, --identifiers-from-file=<identifiersFromFile> are mutually exclusive (specify only one)"),
         arguments(
-            Arrays.asList(
+            Lists.newArrayList(
                 "--source-catalog-type",
                 "HADOOP",
                 "--source-catalog-properties",
@@ -167,11 +135,12 @@ public class CLITest {
                 "--identifiers-regex",
                 "^foo\\.",
                 "--identifiers-from-file",
-                "file.txt"),
-            "java.lang.IllegalArgumentException: Both `--identifiers-regex` "
-                + "and `--identifiers-from-file` options are configured. Please use only one of them."),
+                "file.txt",
+                "--output-dir",
+                "path"),
+            "Error: --identifiers-from-file=<identifiersFromFile>, --identifiers-regex=<identifiersRegEx> are mutually exclusive (specify only one)"),
         arguments(
-            Arrays.asList(
+            Lists.newArrayList(
                 "--source-catalog-type",
                 "HADOOP",
                 "--source-catalog-properties",
@@ -183,26 +152,94 @@ public class CLITest {
                 "--identifiers",
                 "foo.tbl",
                 "--identifiers-regex",
-                "^foo\\."),
-            "java.lang.IllegalArgumentException: Both `--identifiers-regex` and "
-                + "`--identifiers` options are configured. Please use only one of them."));
+                "^foo\\.",
+                "--output-dir",
+                "path"),
+            "Error: --identifiers=<identifiers>, --identifiers-regex=<identifiersRegEx> are mutually exclusive "
+                + "(specify only one)"));
   }
 
   @ParameterizedTest
-  @Order(1)
-  @MethodSource("invalidArgs")
-  public void testInvalidArgs(List<String> args, String expectedMessage) throws Exception {
-    RunCLI run = RunCLI.run(args);
+  @MethodSource("optionErrors")
+  @Order(0)
+  public void testOptionErrorsForRegister(List<String> args, String expectedMessage)
+      throws Exception {
+    executeAndValidateResults("register", args, expectedMessage, 2);
+  }
 
-    Assertions.assertThat(run.getExitCode()).isEqualTo(1);
-    Assertions.assertThat(run.getErr()).contains(expectedMessage);
+  @ParameterizedTest
+  @MethodSource("optionErrors")
+  @Order(1)
+  public void testOptionErrorsForMigrate(List<String> args, String expectedMessage)
+      throws Exception {
+    executeAndValidateResults("migrate", args, expectedMessage, 2);
+  }
+
+  private static Stream<Arguments> invalidArgs() {
+    return Stream.of(
+        arguments(
+            Lists.newArrayList(
+                "--source-catalog-type",
+                "HADOOP",
+                "--source-catalog-properties",
+                "k1=v1,k2=v2",
+                "--target-catalog-type",
+                "HIVE",
+                "--target-catalog-properties",
+                "k3=v3, k4=v4",
+                "--output-dir",
+                "path"),
+            "java.lang.IllegalArgumentException: Cannot initialize HadoopCatalog "
+                + "because warehousePath must not be null or empty"),
+        arguments(
+            Lists.newArrayList(
+                "--source-catalog-type",
+                "HADOOP",
+                "--source-catalog-properties",
+                "k1=v1,k2=v2",
+                "--target-catalog-type",
+                "HIVE",
+                "--target-catalog-properties",
+                "k3=v3, k4=v4",
+                "--identifiers-from-file",
+                "file.txt",
+                "--output-dir",
+                "path"),
+            "java.lang.IllegalArgumentException: "
+                + "File specified in `--identifiers-from-file` option does not exist."));
+  }
+
+  @ParameterizedTest
+  @Order(2)
+  @MethodSource("invalidArgs")
+  public void testInvalidArgsForRegister(List<String> args, String expectedMessage)
+      throws Exception {
+    executeAndValidateResults("register", args, expectedMessage, 1);
+  }
+
+  @ParameterizedTest
+  @Order(2)
+  @MethodSource("invalidArgs")
+  public void testInvalidArgsForMigrate(List<String> args, String expectedMessage)
+      throws Exception {
+    executeAndValidateResults("migrate", args, expectedMessage, 1);
   }
 
   @Test
-  @Order(2)
+  @Order(4)
   public void version() throws Exception {
     RunCLI run = RunCLI.run("--version");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut()).startsWith(System.getProperty("expectedCLIVersion"));
+  }
+
+  private static void executeAndValidateResults(
+      String command, List<String> args, String expectedMessage, int expectedErrorCode)
+      throws Exception {
+    args.add(0, command);
+    RunCLI run = RunCLI.run(args);
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(expectedErrorCode);
+    Assertions.assertThat(run.getErr()).contains(expectedMessage);
   }
 }

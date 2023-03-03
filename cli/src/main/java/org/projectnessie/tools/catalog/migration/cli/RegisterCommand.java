@@ -18,18 +18,19 @@ package org.projectnessie.tools.catalog.migration.cli;
 import picocli.CommandLine;
 
 @CommandLine.Command(
-    name = "iceberg-catalog-migrator",
+    name = "register",
     mixinStandardHelpOptions = true,
     versionProvider = CLIVersionProvider.class,
-    subcommands = {MigrateCommand.class, RegisterCommand.class})
-public class CatalogMigrationCLI {
+    // As both source and target catalog has similar configurations,
+    // documentation is easy to read if the target and source property is one after another instead
+    // of sorted order.
+    sortOptions = false,
+    description =
+        "Bulk register the iceberg tables from source catalog to target catalog without data copy.")
+public class RegisterCommand extends BaseRegisterCommand {
 
-  public CatalogMigrationCLI() {}
-
-  public static void main(String... args) {
-    CommandLine commandLine = new CommandLine(new CatalogMigrationCLI());
-    commandLine.setUsageHelpWidth(150);
-    int exitCode = commandLine.execute(args);
-    System.exit(exitCode);
+  @Override
+  protected boolean isDeleteSourceCatalogTables() {
+    return false;
   }
 }

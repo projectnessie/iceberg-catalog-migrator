@@ -17,6 +17,7 @@ package org.projectnessie.tools.catalog.migration.api.test;
 
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.IntStream;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -52,9 +53,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegister(boolean deleteSourceTables) {
-
-    CatalogMigrationResult result;
-    result = registerAllTables(deleteSourceTables);
+    CatalogMigrationResult result = registerAllTables(deleteSourceTables);
 
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsExactlyInAnyOrder(
@@ -71,6 +70,20 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+
+    if (deleteSourceTables && !(catalog1 instanceof HadoopCatalog)) {
+      // table should be deleted after migration from source catalog
+      Assertions.assertThat(catalog1.listTables(Namespace.of("foo"))).isEmpty();
+      Assertions.assertThat(catalog1.listTables(Namespace.of("bar"))).isEmpty();
+      return;
+    }
+    // tables should be present in source catalog.
+    Assertions.assertThat(catalog1.listTables(Namespace.of("foo")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(catalog1.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
 
   @Order(1)
@@ -81,7 +94,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrationResult result =
         new CatalogMigrator(builder.build())
-            .registerTables(Collections.singletonList(TableIdentifier.parse("bar.tbl3")));
+            .registerTables(Collections.singletonList(TableIdentifier.parse("bar.tbl3")))
+            .result();
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsExactly(TableIdentifier.parse("bar.tbl3"));
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
@@ -95,7 +109,9 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
     result =
-        catalogMigrator.registerTables(catalogMigrator.getMatchingTableIdentifiers("^foo\\..*"));
+        catalogMigrator
+            .registerTables(catalogMigrator.getMatchingTableIdentifiers("^foo\\..*"))
+            .result();
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
@@ -117,7 +133,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrationResult result =
         new CatalogMigrator(builder.build())
-            .registerTables(Collections.singletonList(TableIdentifier.parse("dummy.tbl3")));
+            .registerTables(Collections.singletonList(TableIdentifier.parse("dummy.tbl3")))
+            .result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToRegisterTableIdentifiers())
         .containsExactly(TableIdentifier.parse("dummy.tbl3"));
@@ -127,7 +144,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     builder = builderWithDefaultArgs(deleteSourceTables);
     result =
         new CatalogMigrator(builder.build())
-            .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")));
+            .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")))
+            .result();
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsExactly(TableIdentifier.parse("foo.tbl2"));
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
@@ -136,7 +154,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     builder = builderWithDefaultArgs(deleteSourceTables);
     result =
         new CatalogMigrator(builder.build())
-            .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")));
+            .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")))
+            .result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToRegisterTableIdentifiers())
         .contains(TableIdentifier.parse("foo.tbl2"));
@@ -151,7 +170,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrationResult result =
         new CatalogMigrator(builder.build())
-            .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")));
+            .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")))
+            .result();
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsExactly(TableIdentifier.parse("foo.tbl2"));
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
@@ -192,8 +212,11 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
             .targetCatalog(catalog1)
             .deleteEntriesFromSourceCatalog(deleteSourceTables);
     CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
+    List<TableIdentifier> matchingTableIdentifiers =
+        catalogMigrator.getMatchingTableIdentifiers(null);
+    Assertions.assertThat(matchingTableIdentifiers).isEmpty();
     CatalogMigrationResult result =
-        catalogMigrator.registerTables(catalogMigrator.getMatchingTableIdentifiers(null));
+        catalogMigrator.registerTables(matchingTableIdentifiers).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
@@ -223,10 +246,34 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
 
+  @Order(6)
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testListingTableIdentifiers(boolean deleteSourceTables) {
+    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
+    CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
+
+    List<TableIdentifier> matchingTableIdentifiers =
+        catalogMigrator.getMatchingTableIdentifiers(null);
+    Assertions.assertThat(matchingTableIdentifiers)
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"),
+            TableIdentifier.parse("foo.tbl2"),
+            TableIdentifier.parse("bar.tbl3"),
+            TableIdentifier.parse("bar.tbl4"));
+
+    matchingTableIdentifiers = catalogMigrator.getMatchingTableIdentifiers("^foo\\..*");
+    Assertions.assertThat(matchingTableIdentifiers)
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
+  }
+
   private CatalogMigrationResult registerAllTables(boolean deleteSourceTables) {
     ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
-    return catalogMigrator.registerTables(catalogMigrator.getMatchingTableIdentifiers(null));
+    return catalogMigrator
+        .registerTables(catalogMigrator.getMatchingTableIdentifiers(null))
+        .result();
   }
 
   private ImmutableCatalogMigratorParams.Builder builderWithDefaultArgs(

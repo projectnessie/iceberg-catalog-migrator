@@ -31,6 +31,7 @@ applyShadowJar()
 dependencies {
   implementation(project(":iceberg-catalog-migrator-api"))
   implementation(libs.slf4j)
+  runtimeOnly(libs.logback.classic)
   implementation(libs.picocli)
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.iceberg.dell)

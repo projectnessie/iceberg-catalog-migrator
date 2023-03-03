@@ -20,11 +20,11 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.immutables.value.Value;
 
 @Value.Immutable
-public abstract class CatalogMigrationResult {
+public interface CatalogMigrationResult {
 
-  public abstract List<TableIdentifier> registeredTableIdentifiers();
+  List<TableIdentifier> registeredTableIdentifiers();
 
-  public abstract List<TableIdentifier> failedToRegisterTableIdentifiers();
+  List<TableIdentifier> failedToRegisterTableIdentifiers();
 
-  public abstract List<TableIdentifier> failedToDeleteTableIdentifiers();
+  List<TableIdentifier> failedToDeleteTableIdentifiers();
 }

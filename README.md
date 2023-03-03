@@ -27,74 +27,87 @@ Need to have java installed in your machine(JDK11 or later version) to use this 
 
 Below is the CLI syntax:
 ```
-$ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar -h
-Usage: register [-hV] [--delete-source-tables] [--dry-run] [--identifiers-from-file=<identifiersFromFile>] [--identifiers-regex=<identifiersRegEx>]
-                [--output-dir=<outputDirPath>] --source-catalog-type=<sourceCatalogType> [--source-custom-catalog-impl=<sourceCustomCatalogImpl>]
-                --target-catalog-type=<targetCatalogType> [--target-custom-catalog-impl=<targetCustomCatalogImpl>] [--identifiers=<identifiers>[,
-                <identifiers>...]]... [--source-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
-                --source-catalog-properties=<String=String>[,<String=String>...] [--source-catalog-properties=<String=String>[,
-                <String=String>...]]... [--target-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
-                --target-catalog-properties=<String=String>[,<String=String>...] [--target-catalog-properties=<String=String>[,<String=String>...]]...
-
-Bulk register the iceberg tables from source catalog to target catalog without data copy.
-
-      --source-catalog-type=<sourceCatalogType>
-                  source catalog type. Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, NESSIE, REST]
-      --source-catalog-properties=<String=String>[,<String=String>...]
-                  source catalog properties (like uri, warehouse, etc)
-      --source-catalog-hadoop-conf=<String=String>[,<String=String>...]
-                  optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg FileIO.
-      --source-custom-catalog-impl=<sourceCustomCatalogImpl>
-                  optional fully qualified class name of the custom catalog implementation of the source catalog. Required when the catalog type is
-                    CUSTOM.
-      --target-catalog-type=<targetCatalogType>
-                  target catalog type. Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, NESSIE, REST]
-      --target-catalog-properties=<String=String>[,<String=String>...]
-                  target catalog properties (like uri, warehouse, etc)
-      --target-catalog-hadoop-conf=<String=String>[,<String=String>...]
-                  optional target catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg FileIO.
-      --target-custom-catalog-impl=<targetCustomCatalogImpl>
-                  optional fully qualified class name of the custom catalog implementation of the target catalog. Required when the catalog type is
-                    CUSTOM.
-      --identifiers=<identifiers>[,<identifiers>...]
-                  optional selective list of identifiers to register. If not specified, all the tables will be registered. Use this when there are
-                    few identifiers that need to be registered. For a large number of identifiers, use the `--identifiers-from-file` or
-                    `--identifiers-regex` option.
-      --identifiers-from-file=<identifiersFromFile>
-                  optional text file path that contains a list of table identifiers (one per line) to register. Should not be used with
-                    `--identifiers` or `--identifiers-regex` option.
-      --identifiers-regex=<identifiersRegEx>
-                  optional regular expression pattern used to register only the tables whose identifiers match this pattern. Should not be used with
-                    `--identifiers` or '--identifiers-from-file' option.
-      --dry-run   optional configuration to simulate the registration without actually registering. Can learn about a list of the tables that will be
-                    registered by running this.
-      --delete-source-tables
-                  optional configuration to delete the table entry from source catalog after successfully registering it to target catalog.
-      --output-dir=<outputDirPath>
-                  optional local output directory path to write CLI output files like `failed_identifiers.txt`, `failed_to_delete_at_source.txt`,
-                    `dry_run_identifiers.txt`. Uses the present working directory if not specified.
-  -h, --help      Show this help message and exit.
-  -V, --version   Print version information and exit.
+$ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar -h        
+Usage: iceberg-catalog-migrator [-hV] [COMMAND]
+-h, --help      Show this help message and exit.
+-V, --version   Print version information and exit.
 ```
+
+```
+$ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar register -h
+Usage: iceberg-catalog-migrator register [-hV] [--disable-prompts] [--dry-run] --output-dir=<outputDirPath> (--source-catalog-type=<type>
+                                         --source-catalog-properties=<String=String>[,<String=String>...] [--source-catalog-properties=<String=String>
+                                         [,<String=String>...]]... [--source-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
+                                         [--source-custom-catalog-impl=<customCatalogImpl>]) (--target-catalog-type=<type>
+                                         --target-catalog-properties=<String=String>[,<String=String>...] [--target-catalog-properties=<String=String>
+                                         [,<String=String>...]]... [--target-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
+                                         [--target-custom-catalog-impl=<customCatalogImpl>]) [--identifiers=<identifiers>[,<identifiers>...]
+                                         [--identifiers=<identifiers>[,<identifiers>...]]... | --identifiers-from-file=<identifiersFromFile> |
+                                         --identifiers-regex=<identifiersRegEx>]
+Bulk register the iceberg tables from source catalog to target catalog without data copy.
+      --output-dir=<outputDirPath>
+                          local output directory path to write CLI output files like `failed_identifiers.txt`, `failed_to_delete_at_source.txt`,
+                            `dry_run_identifiers.txt`.
+      --dry-run           optional configuration to simulate the registration without actually registering. Can learn about a list of the tables that
+                            will be registered by running this.
+      --disable-prompts   optional configuration to disable warning prompts which needs console input.
+  -h, --help              Show this help message and exit.
+  -V, --version           Print version information and exit.
+source catalog options:
+      --source-catalog-type=<type>
+                          source catalog type. Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, NESSIE, REST]
+      --source-catalog-properties=<String=String>[,<String=String>...]
+                          source catalog properties (like uri, warehouse, etc)
+      --source-catalog-hadoop-conf=<String=String>[,<String=String>...]
+                          optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg
+                            FileIO.
+      --source-custom-catalog-impl=<customCatalogImpl>
+                          optional fully qualified class name of the custom catalog implementation of the source catalog. Required when the catalog
+                            type is CUSTOM.
+target catalog options:
+      --target-catalog-type=<type>
+                          target catalog type. Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, NESSIE, REST]
+      --target-catalog-properties=<String=String>[,<String=String>...]
+                          target catalog properties (like uri, warehouse, etc)
+      --target-catalog-hadoop-conf=<String=String>[,<String=String>...]
+                          optional target catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg
+                            FileIO.
+      --target-custom-catalog-impl=<customCatalogImpl>
+                          optional fully qualified class name of the custom catalog implementation of the target catalog. Required when the catalog
+                            type is CUSTOM.
+identifier options:
+      --identifiers=<identifiers>[,<identifiers>...]
+                          optional selective list of identifiers to register. If not specified, all the tables will be registered. Use this when
+                            there are few identifiers that need to be registered. For a large number of identifiers, use the
+                            `--identifiers-from-file` or `--identifiers-regex` option.
+      --identifiers-from-file=<identifiersFromFile>
+                          optional text file path that contains a list of table identifiers (one per line) to register. Should not be used with
+                            `--identifiers` or `--identifiers-regex` option.
+      --identifiers-regex=<identifiersRegEx>
+                          optional regular expression pattern used to register only the tables whose identifiers match this pattern. Should not be
+                            used with `--identifiers` or '--identifiers-from-file' option.
+```
+
+Note: options for migrate command is exactly same as register command.
 
 > :warning: **It is recommended to use this CLI tool when there is no in-progress commits for the tables in the source catalog.**
 In-progress commits may not make it into the target catalog if used.
 
-> :warning: By default this tool just registers the table. 
+> :warning: `register` command just registers the table. 
 Which means the table will be present in both the catalogs after registering.
 Operating same table from more than one catalog can lead to missing updates, loss of data and table corruption. 
-So, it is recommended to use the '--delete-source-tables' option in CLI to automatically delete the table from source catalog after registering 
-or avoid operating tables from the source catalog after registering if '--delete-source-tables' option is not used.
+So, it is recommended to use the 'migrate' command in CLI to automatically delete the table from source catalog after registering 
+or avoid operating tables from the source catalog after registering if 'migrate' command is not used.
 
 # Sample Inputs
 ## Bulk migrating all the tables from Hadoop catalog to Nessie catalog (main branch)
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables
+--output-dir $PWD/output
 ```
 
 ## Register all the tables from Hadoop catalog to Arctic catalog (main branch)
@@ -106,12 +119,13 @@ export ACCESSKEY=xxxxxxx
 ```
 
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE \
 --target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT \
---target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+--target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY \
+--output-dir $PWD/output
 ```
 
 ## Migrate selected tables (t1,t2 in namespace foo) from Arctic catalog (main branch) to Hadoop catalog.
@@ -123,13 +137,13 @@ export ACCESSKEY=xxxxxxx
 ```
 
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type NESSIE \
 --source-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT \
 --target-catalog-type HADOOP \
 --target-catalog-properties warehouse=/tmp/warehouse,type=hadoop --source-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY \
 --identifiers foo.t1,foo.t2 \
---delete-source-tables
+--output-dir $PWD/output
 ```
 
 # Scenarios
@@ -143,12 +157,13 @@ No need for a catalog migration tool.
 
 Sample input:
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---dry-run
+--dry-run \
+--output-dir $PWD/output
 ```
 
 All the inputs will be validated and a list of identified table identifiers for migration will be printed on the console
@@ -159,12 +174,12 @@ which can be used for actual migration using the `--identifiers-from-file` optio
 
 Sample input:
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables
+--output-dir $PWD/output
 ```
 
 Once the input validations are done, users will be prompted with this message.
@@ -222,12 +237,12 @@ Note: a log file will also be generated which prints “successfully migrated ta
 
 Sample input:
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables
+--output-dir $PWD/output
 ```
 
 Console output will be same as B.2) till summary because even in case of failure,
@@ -257,12 +272,12 @@ Users can rename the tables in the source catalog and migrate only these 10 tabl
 
 Sample input:
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables
+--output-dir $PWD/output
 ```
 
 Console output will be same as B.2) till summary because even in case of failure,
@@ -291,12 +306,12 @@ As these were timeout exceptions, users can retry migration of only these 900 ta
 
 Sample input:
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables
+--output-dir $PWD/output
 ```
 
 Console output will be same as B.2) till summary because even in case of failure,
@@ -333,35 +348,36 @@ Users can provide the selective list of identifiers to migrate using any of thes
 
 Sample input: (only migrate tables that starts with "foo.")
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables \
---identifiers-regex ^foo\..*
+--identifiers-regex ^foo\..* \
+--output-dir $PWD/output
+
 ```
 
 Sample input: (migrate all tables in the file ids.txt where each entry is delimited by newline)
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables \
---identifiers-from-file ids.txt
+--identifiers-from-file ids.txt \
+--output-dir $PWD/output
 ```
 
 Sample input: (migrate only two tables foo.tbl1, foo.tbl2)
 ```shell
-java -jar catalog-migration-tool-1.0-SNAPSHOT.jar \
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---delete-source-tables \
---identifiers foo.tbl1,foo.tbl2
+--identifiers foo.tbl1,foo.tbl2 \
+--output-dir $PWD/output
 ```
 
 Console will clearly print that only these identifiers are used for table migration.

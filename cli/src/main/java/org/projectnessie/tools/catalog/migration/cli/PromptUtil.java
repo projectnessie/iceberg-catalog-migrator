@@ -22,7 +22,7 @@ public final class PromptUtil {
 
   private PromptUtil() {}
 
-  public static final String WARNING_FOR_REGISTRATION =
+  private static final String WARNING_FOR_REGISTRATION =
       String.format(
           "%n[WARNING]%n"
               + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
@@ -34,10 +34,10 @@ public final class PromptUtil {
               + "catalog. "
               + "%n\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
               + "loss of data, and table corruption. "
-              + "%n\tUse `--delete-source-tables` option to automatically delete the table from source catalog after "
+              + "%n\tUse `migrate` command to automatically delete the table from source catalog after "
               + "migration.");
 
-  public static final String WARNING_FOR_MIGRATION =
+  private static final String WARNING_FOR_MIGRATION =
       String.format(
           "%n[WARNING]%n"
               + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
@@ -48,11 +48,11 @@ public final class PromptUtil {
               + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
               + "%n\tand can only be accessed from the target catalog.");
 
-  public static boolean proceedForRegistration(PrintWriter printWriter) {
+  static boolean proceedForRegistration(PrintWriter printWriter) {
     return proceed(WARNING_FOR_REGISTRATION, printWriter);
   }
 
-  public static boolean proceedForMigration(PrintWriter printWriter) {
+  static boolean proceedForMigration(PrintWriter printWriter) {
     return proceed(WARNING_FOR_MIGRATION, printWriter);
   }
 

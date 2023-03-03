@@ -42,7 +42,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
-import org.projectnessie.tools.catalog.migration.cli.CatalogMigrationCLI;
+import org.projectnessie.tools.catalog.migration.cli.CatalogUtil;
 
 public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
@@ -82,7 +82,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegister(boolean deleteSourceTables) throws Exception {
-    RunCLI run = registerTablesCLI(deleteSourceTables, registerAllTablesArgs());
+    RunCLI run = runCLI(deleteSourceTables, registerAllTablesArgs());
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
@@ -119,7 +119,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   public void testRegisterSelectedTables(boolean deleteSourceTables) throws Exception {
     // using `--identifiers` option
     RunCLI run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -132,7 +132,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--identifiers",
             "bar.tbl3",
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
 
     Assertions.assertThat(run.getOut())
         .doesNotContain(
@@ -165,7 +166,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     // using `--identifiers-from-file` option
     Files.write(identifierFile, Collections.singletonList("bar.tbl4"));
     run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -178,7 +179,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--identifiers-from-file",
             identifierFile.toAbsolutePath().toString(),
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     Files.delete(identifierFile);
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
@@ -209,7 +211,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
     // using --identifiers-regex option which matches all the tables starts with "foo."
     run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -222,7 +224,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--identifiers-regex",
             "^foo\\..*",
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
         .contains(
@@ -258,7 +261,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   public void testRegisterError(boolean deleteSourceTables) throws Exception {
     // use invalid namespace which leads to NoSuchTableException
     RunCLI run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -271,7 +274,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--identifiers",
             "dummy.tbl3",
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -288,7 +292,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             String.format("Details: %n- Failed to %s these tables:%n[dummy.tbl3]", operation));
 
     // try to register same table twice which leads to AlreadyExistsException
-    registerTablesCLI(
+    runCLI(
         deleteSourceTables,
         "--source-catalog-type",
         sourceCatalogType,
@@ -301,9 +305,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         "--identifiers",
         "foo.tbl2",
         "--output-dir",
-        outputDir.toAbsolutePath().toString());
+        outputDir.toAbsolutePath().toString(),
+        "--disable-prompts");
     run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -316,7 +321,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--identifiers",
             "foo.tbl2",
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -338,7 +344,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   public void testRegisterWithFewFailures(boolean deleteSourceTables) throws Exception {
     // register only foo.tbl2
     RunCLI run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -351,7 +357,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--identifiers",
             "foo.tbl2",
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -374,7 +381,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
     // register all the tables from source catalog again
     run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -385,7 +392,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--target-catalog-properties",
             targetCatalogProperties,
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -426,7 +434,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
     // retry the failed tables using --identifiers-from-file
     run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -439,7 +447,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--identifiers-from-file",
             failedIdentifiersFile.toAbsolutePath().toString(),
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
@@ -463,7 +472,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   public void testRegisterNoTables(boolean deleteSourceTables) throws Exception {
     // source catalog is catalog2 which has no tables.
     RunCLI run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             targetCatalogType,
@@ -474,7 +483,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--target-catalog-properties",
             sourceCatalogProperties,
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
@@ -487,7 +497,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   @ValueSource(booleans = {true, false})
   public void testDryRun(boolean deleteSourceTables) throws Exception {
     RunCLI run =
-        registerTablesCLI(
+        runCLI(
             deleteSourceTables,
             "--source-catalog-type",
             sourceCatalogType,
@@ -499,7 +509,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             targetCatalogProperties,
             "--dry-run",
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     // should not prompt for dry run
@@ -536,7 +547,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                 catalog1.createTable(
                     TableIdentifier.of(Namespace.of("foo"), "tblx" + val), schema));
 
-    RunCLI run = registerTablesCLI(deleteSourceTables, registerAllTablesArgs());
+    RunCLI run = runCLI(deleteSourceTables, registerAllTablesArgs());
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
@@ -576,39 +587,40 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--target-catalog-properties",
             targetCatalogProperties,
             "--output-dir",
-            outputDir.toAbsolutePath().toString());
+            outputDir.toAbsolutePath().toString(),
+            "--disable-prompts");
     return args.toArray(new String[0]);
   }
 
-  private static RunCLI registerTablesCLI(boolean deleteSourceTables, String... args)
-      throws Exception {
-    if (!deleteSourceTables) {
-      return RunCLI.run(args);
-    }
+  private static RunCLI runCLI(boolean deleteSourceTables, String... args) throws Exception {
     List<String> argsList = Lists.newArrayList(args);
-    argsList.add("--delete-source-tables");
+    if (!deleteSourceTables) {
+      argsList.add(0, "register");
+    } else {
+      argsList.add(0, "migrate");
+    }
     return RunCLI.run(argsList.toArray(new String[0]));
   }
 
   protected static String catalogType(Catalog catalog) {
     if (catalog instanceof DynamoDbCatalog) {
-      return CatalogMigrationCLI.CatalogType.DYNAMODB.name();
+      return CatalogUtil.CatalogType.DYNAMODB.name();
     } else if (catalog instanceof EcsCatalog) {
-      return CatalogMigrationCLI.CatalogType.ECS.name();
+      return CatalogUtil.CatalogType.ECS.name();
     } else if (catalog instanceof GlueCatalog) {
-      return CatalogMigrationCLI.CatalogType.GLUE.name();
+      return CatalogUtil.CatalogType.GLUE.name();
     } else if (catalog instanceof HadoopCatalog) {
-      return CatalogMigrationCLI.CatalogType.HADOOP.name();
+      return CatalogUtil.CatalogType.HADOOP.name();
     } else if (catalog instanceof HiveCatalog) {
-      return CatalogMigrationCLI.CatalogType.HIVE.name();
+      return CatalogUtil.CatalogType.HIVE.name();
     } else if (catalog instanceof JdbcCatalog) {
-      return CatalogMigrationCLI.CatalogType.JDBC.name();
+      return CatalogUtil.CatalogType.JDBC.name();
     } else if (catalog instanceof NessieCatalog) {
-      return CatalogMigrationCLI.CatalogType.NESSIE.name();
+      return CatalogUtil.CatalogType.NESSIE.name();
     } else if (catalog instanceof RESTCatalog) {
-      return CatalogMigrationCLI.CatalogType.REST.name();
+      return CatalogUtil.CatalogType.REST.name();
     } else {
-      return CatalogMigrationCLI.CatalogType.CUSTOM.name();
+      return CatalogUtil.CatalogType.CUSTOM.name();
     }
   }
 }
