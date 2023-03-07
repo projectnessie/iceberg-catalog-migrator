@@ -16,7 +16,6 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -24,11 +23,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 public class IdentifierOptions {
-
-  @CommandLine.Spec CommandLine.Model.CommandSpec commandSpec;
 
   @CommandLine.Option(
       names = {"--identifiers"},
@@ -53,16 +52,17 @@ public class IdentifierOptions {
               + "Should not be used with `--identifiers` or '--identifiers-from-file' option.")
   protected String identifiersRegEx;
 
+  private final Logger consoleLog = LoggerFactory.getLogger("console-log");
+
   protected List<TableIdentifier> processIdentifiersInput() {
     if (identifiersFromFile != null && !Files.exists(Paths.get(identifiersFromFile))) {
       throw new IllegalArgumentException(
           "File specified in `--identifiers-from-file` option does not exist.");
     }
-    PrintWriter printWriter = commandSpec.commandLine().getOut();
     List<TableIdentifier> tableIdentifiers;
     if (identifiersFromFile != null) {
       try {
-        printWriter.printf("Collecting identifiers from the file %s...%n", identifiersFromFile);
+        consoleLog.info("Collecting identifiers from the file {}...", identifiersFromFile);
         tableIdentifiers =
             Files.readAllLines(Paths.get(identifiersFromFile)).stream()
                 .map(TableIdentifier::parse)

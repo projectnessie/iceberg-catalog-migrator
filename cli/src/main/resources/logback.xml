@@ -18,7 +18,8 @@
 -->
 <configuration debug="true">
   <property name="catalog.migration.log.dir" value="${catalog.migration.log.dir:-logs}"/>
-  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+
+  <appender name="file" class="ch.qos.logback.core.FileAppender">
     <file>${catalog.migration.log.dir}/catalog_migration.log</file>
     <append>true</append>
     <encoder>
@@ -26,9 +27,17 @@
     </encoder>
   </appender>
 
-  <logger name="org.projectnessie.tools.catalog.migration"/>
+  <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>%highlight(%-5level) - %msg%n</pattern>
+    </encoder>
+  </appender>
+
+  <logger name="console-log" level="INFO" additivity="false">
+    <appender-ref ref="console"/>
+  </logger>
   <root>
     <level value="INFO"/>
-    <appender-ref ref="FILE"/>
+    <appender-ref ref="file"/>
   </root>
 </configuration>

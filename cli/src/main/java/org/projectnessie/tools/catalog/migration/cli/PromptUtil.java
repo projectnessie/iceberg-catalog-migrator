@@ -16,15 +16,18 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import java.io.Console;
-import java.io.PrintWriter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class PromptUtil {
 
   private PromptUtil() {}
 
+  private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
+
   private static final String WARNING_FOR_REGISTRATION =
       String.format(
-          "%n[WARNING]%n"
+          "%n"
               + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
               + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
               + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
@@ -39,7 +42,7 @@ public final class PromptUtil {
 
   private static final String WARNING_FOR_MIGRATION =
       String.format(
-          "%n[WARNING]%n"
+          "%n"
               + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
               + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
               + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
@@ -48,31 +51,31 @@ public final class PromptUtil {
               + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
               + "%n\tand can only be accessed from the target catalog.");
 
-  static boolean proceedForRegistration(PrintWriter printWriter) {
-    return proceed(WARNING_FOR_REGISTRATION, printWriter);
+  static boolean proceedForRegistration() {
+    return proceed(WARNING_FOR_REGISTRATION);
   }
 
-  static boolean proceedForMigration(PrintWriter printWriter) {
-    return proceed(WARNING_FOR_MIGRATION, printWriter);
+  static boolean proceedForMigration() {
+    return proceed(WARNING_FOR_MIGRATION);
   }
 
-  private static boolean proceed(String warning, PrintWriter printWriter) {
-    printWriter.println(warning);
+  private static boolean proceed(String warning) {
+    consoleLog.warn(warning);
 
     Console console = System.console();
     while (true) {
-      printWriter.println(
+      consoleLog.info(
           "Have you read the above warnings and are you sure you want to continue? (yes/no):");
       String input = console.readLine();
 
       if (input.equalsIgnoreCase("yes")) {
-        printWriter.println("Continuing...");
+        consoleLog.info("Continuing...");
         return true;
       } else if (input.equalsIgnoreCase("no")) {
-        printWriter.println("Aborting...");
+        consoleLog.info("Aborting...");
         return false;
       } else {
-        printWriter.println("Invalid input. Please enter 'yes' or 'no'.");
+        consoleLog.info("Invalid input. Please enter 'yes' or 'no'.");
       }
     }
   }

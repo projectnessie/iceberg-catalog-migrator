@@ -8,7 +8,8 @@ hive = "2.3.8" # this is in mapping with iceberg repo. Later versions have junit
 iceberg = "1.1.0"
 immutables = "2.9.3"
 junit = "5.9.2"
-logback = "1.2.11"
+logback = "1.4.5"
+logcaptor = "2.8.0"
 nessie = "0.50.0"
 nessieBuildPlugins = "0.2.19"
 nessieRunner = "0.29.0"
@@ -19,7 +20,11 @@ spotlessPlugin = "6.16.0"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
-aws-sdk = { module = "com.amazonaws:aws-java-sdk", version.ref = "aws" }
+aws-sdk-dynamo = { module = "com.amazonaws:aws-java-sdk-dynamodb", version.ref = "aws" }
+aws-sdk-glue = { module = "com.amazonaws:aws-java-sdk-glue", version.ref = "aws" }
+aws-sdk-kms = { module = "com.amazonaws:aws-java-sdk-kms", version.ref = "aws" }
+aws-sdk-sts = { module = "com.amazonaws:aws-java-sdk-sts", version.ref = "aws" }
+aws-sdk-s3 = { module = "com.amazonaws:aws-java-sdk-s3", version.ref = "aws" }
 google-java-format = { module = "com.google.googlejavaformat:google-java-format", version.ref = "googleJavaFormat" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 hadoop-aws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoop" }
@@ -32,6 +37,7 @@ junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.re
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+logcaptor = { module = "io.github.hakky54:logcaptor", version.ref = "logcaptor" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
 

@@ -228,7 +228,7 @@ public class CLITest {
   @Test
   @Order(4)
   public void version() throws Exception {
-    RunCLI run = RunCLI.run("--version");
+    RunCLI run = RunCLI.runWithPrintWriter("--version");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut()).startsWith(System.getProperty("expectedCLIVersion"));
   }

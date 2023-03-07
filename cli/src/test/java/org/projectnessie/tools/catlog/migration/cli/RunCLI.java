@@ -19,6 +19,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
+import nl.altindag.log.LogCaptor;
 import org.projectnessie.tools.catalog.migration.cli.CatalogMigrationCLI;
 import picocli.CommandLine;
 
@@ -42,6 +43,16 @@ public final class RunCLI {
   }
 
   public static RunCLI run(String... args) throws Exception {
+    try (LogCaptor logCaptor = LogCaptor.forName("console-log");
+        StringWriter err = new StringWriter();
+        PrintWriter errWriter = new PrintWriter(err)) {
+      int exitCode = runMain(null, errWriter, args);
+      String out = String.join(System.lineSeparator(), logCaptor.getLogs());
+      return new RunCLI(exitCode, out, err.toString(), args);
+    }
+  }
+
+  public static RunCLI runWithPrintWriter(String... args) throws Exception {
     try (StringWriter out = new StringWriter();
         PrintWriter outWriter = new PrintWriter(out);
         StringWriter err = new StringWriter();
@@ -70,7 +81,6 @@ public final class RunCLI {
     try {
       return commandLine.execute(arguments);
     } finally {
-      commandLine.getOut().flush();
       commandLine.getErr().flush();
     }
   }

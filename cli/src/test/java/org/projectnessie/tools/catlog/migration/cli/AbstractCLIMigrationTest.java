@@ -96,10 +96,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Successfully %s 4 tables from %s catalog to %s catalog.",
+                "Summary: %nSuccessfully %s 4 tables from %s catalog to %s catalog.",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
@@ -146,12 +146,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Successfully %s 1 tables from %s catalog to" + " %s catalog.",
+                "Summary: %nSuccessfully %s 1 tables from %s catalog to %s catalog.",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(
-            String.format(
-                "Details: %n- Successfully %s these tables:%n" + "[bar.tbl3]", operation));
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n[bar.tbl3]", operation));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
@@ -195,10 +193,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Successfully %s 1 tables from %s catalog to" + " %s catalog.",
+                "Summary: %nSuccessfully %s 1 tables from %s catalog to %s catalog.",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
@@ -238,10 +236,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Successfully %s 2 tables from %s catalog to" + " %s catalog.",
+                "Summary: %nSuccessfully %s 2 tables from %s catalog to %s catalog.",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
@@ -284,12 +282,11 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Failed to %s 1 tables from %s catalog to %s catalog."
+                "Summary: %nFailed to %s 1 tables from %s catalog to %s catalog."
                     + " Please check the `catalog_migration.log`",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(
-            String.format("Details: %n- Failed to %s these tables:%n[dummy.tbl3]", operation));
+        .contains(String.format("Details: %nFailed to %s these tables:%n[dummy.tbl3]", operation));
 
     // try to register same table twice which leads to AlreadyExistsException
     runCLI(
@@ -331,11 +328,11 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Failed to %s 1 tables from %s catalog to %s catalog."
+                "Summary: %nFailed to %s 1 tables from %s catalog to %s catalog."
                     + " Please check the `catalog_migration.log`",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %n- Failed to %s these tables:%n[foo.tbl2]", operation));
+        .contains(String.format("Details: %nFailed to %s these tables:%n[foo.tbl2]", operation));
   }
 
   @Order(3)
@@ -367,12 +364,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Successfully %s 1 tables from %s catalog to %s catalog.",
+                "Summary: %nSuccessfully %s 1 tables from %s catalog to %s catalog.",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(
-            String.format(
-                "Details: %n" + "- Successfully %s these tables:%n" + "[foo.tbl2]", operation));
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n[foo.tbl2]", operation));
 
     if (deleteSourceTables && !(catalog1 instanceof HadoopCatalog)) {
       // create a table with the same name in source catalog which got deleted.
@@ -404,9 +399,9 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .contains(
             String.format(
                 "Summary: %n"
-                    + "- Successfully %s 3 tables from %s catalog to %s catalog.%n"
-                    + "- Failed to %s 1 tables from %s catalog to %s catalog. "
-                    + "Please check the `catalog_migration.log` file for the failure reason. %n"
+                    + "Successfully %s 3 tables from %s catalog to %s catalog.%n"
+                    + "Failed to %s 1 tables from %s catalog to %s catalog. "
+                    + "Please check the `catalog_migration.log` file for the failure reason. "
                     + "Failed identifiers are written into `failed_identifiers.txt`. "
                     + "Retry with that file using `--identifiers-from-file` option "
                     + "if the failure is because of network/connection timeouts.",
@@ -417,9 +412,9 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                 sourceCatalogType,
                 targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
     Assertions.assertThat(run.getOut())
-        .contains(String.format("- Failed to %s these tables:%n[foo.tbl2]", ops));
+        .contains(String.format("Failed to %s these tables:%n[foo.tbl2]", ops));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
@@ -453,15 +448,14 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .contains(
             String.format(
                 "Summary: %n"
-                    + "- Failed to %s 1 tables from %s catalog to %s catalog. "
-                    + "Please check the `catalog_migration.log` file for the failure reason. %n"
+                    + "Failed to %s 1 tables from %s catalog to %s catalog. "
+                    + "Please check the `catalog_migration.log` file for the failure reason. "
                     + "Failed identifiers are written into `failed_identifiers.txt`. "
                     + "Retry with that file using `--identifiers-from-file` option "
                     + "if the failure is because of network/connection timeouts.",
                 ops, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(
-            String.format("Details: %n" + "- Failed to %s these tables:%n" + "[foo.tbl2]", ops));
+        .contains(String.format("Details: %nFailed to %s these tables:%n[foo.tbl2]", ops));
     Assertions.assertThat(Files.exists(failedIdentifiersFile)).isTrue();
     Assertions.assertThat(Files.readAllLines(failedIdentifiersFile)).containsExactly("foo.tbl2");
   }
@@ -523,14 +517,13 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .contains(
             String.format(
                 "Summary: %n"
-                    + "- Identified 4 tables for %s by dry-run. "
+                    + "Identified 4 tables for %s by dry-run. "
                     + "These identifiers are also written into dry_run_identifiers.txt. "
                     + "You can use this file with `--identifiers-from-file` option.",
                 operation));
     Assertions.assertThat(run.getOut())
         .contains(
-            String.format(
-                "Details: %n" + "- Identified these tables for %s by dry-run:%n", operation));
+            String.format("Details: %nIdentified these tables for %s by dry-run:%n", operation));
     Assertions.assertThat(Files.exists(dryRunFile)).isTrue();
     Assertions.assertThat(Files.readAllLines(dryRunFile))
         .containsExactlyInAnyOrder("foo.tbl1", "foo.tbl2", "bar.tbl3", "bar.tbl4");
@@ -557,10 +550,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
-                "Summary: %n- Successfully %s 244 tables from %s catalog to" + " %s catalog.",
+                "Summary: %nSuccessfully %s 244 tables from %s catalog to" + " %s catalog.",
                 operation, sourceCatalogType, targetCatalogType));
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %n" + "- Successfully %s these tables:%n", operation));
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
 
     operation = deleteSourceTables ? "migration" : "registration";
     // validate intermediate output

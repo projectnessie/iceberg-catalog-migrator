@@ -35,14 +35,20 @@ dependencies {
   implementation(libs.picocli)
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.iceberg.dell)
-  implementation(libs.hadoop.aws)
+  implementation(libs.hadoop.aws) { exclude("com.amazonaws", "aws-java-sdk-bundle") }
   implementation(libs.hadoop.common)
-  implementation(libs.aws.sdk)
+  // AWS depdencies based on https://iceberg.apache.org/docs/latest/aws/#enabling-aws-integration
+  implementation(libs.aws.sdk.glue)
+  implementation(libs.aws.sdk.s3)
+  implementation(libs.aws.sdk.dynamo)
+  implementation(libs.aws.sdk.kms)
+  implementation(libs.aws.sdk.sts)
 
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
   testImplementation(libs.assertj)
+  testImplementation(libs.logcaptor)
 
   testImplementation(project(":iceberg-catalog-migrator-api-test"))
 
