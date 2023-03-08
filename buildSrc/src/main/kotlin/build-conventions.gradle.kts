@@ -15,23 +15,29 @@
  */
 
 plugins {
-  `java-library`
-  `maven-publish`
-  `build-conventions`
+  id("org.projectnessie.buildsupport.jacoco")
+  `eclipse`
 }
 
-dependencies {
-  implementation(libs.guava)
-  implementation(libs.slf4j)
-  implementation(libs.iceberg.spark.runtime)
+val hasSrcMain = projectDir.resolve("src/main").exists()
+val hasSrcTest = projectDir.resolve("src/test").exists()
 
-  annotationProcessor(libs.immutables)
-  compileOnly(libs.immutables)
+apply<PublishingHelperPlugin>()
 
-  testRuntimeOnly(libs.logback.classic)
-  testImplementation(libs.junit.jupiter.params)
-  testImplementation(libs.junit.jupiter.api)
-  testImplementation(libs.junit.jupiter.engine)
-  testImplementation(libs.assertj)
-  testImplementation(libs.hadoop.common)
+configureIde()
+
+configureSpotless()
+
+configureJandex()
+
+configureJava()
+
+if (hasSrcMain || hasSrcTest) {
+  configureCheckstyle()
+
+  configureErrorprone()
+
+  if (hasSrcTest) {
+    configureTestTasks()
+  }
 }

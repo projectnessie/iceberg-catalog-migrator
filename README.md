@@ -29,8 +29,12 @@ Below is the CLI syntax:
 ```
 $ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar -h        
 Usage: iceberg-catalog-migrator [-hV] [COMMAND]
--h, --help      Show this help message and exit.
--V, --version   Print version information and exit.
+  -h, --help      Show this help message and exit.
+  -V, --version   Print version information and exit.
+Commands:
+  migrate   Bulk migrate the iceberg tables from source catalog to target catalog without data copy. Table entries from source catalog will be
+              deleted after the successful migration to the target catalog.
+  register  Bulk register the iceberg tables from source catalog to target catalog without data copy.
 ```
 
 ```

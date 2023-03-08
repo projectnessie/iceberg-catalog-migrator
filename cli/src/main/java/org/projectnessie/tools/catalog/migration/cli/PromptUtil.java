@@ -24,44 +24,52 @@ public final class PromptUtil {
   private PromptUtil() {}
 
   private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
-
-  private static final String WARNING_FOR_REGISTRATION =
-      String.format(
-          "%n"
-              + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-              + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
-              + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
-              + "catalog%n"
-              + "%n"
-              + "\tb) After the registration, successfully registered tables will be present in both source and target "
-              + "catalog. "
-              + "%n\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
-              + "loss of data, and table corruption. "
-              + "%n\tUse `migrate` command to automatically delete the table from source catalog after "
-              + "migration.");
-
-  private static final String WARNING_FOR_MIGRATION =
-      String.format(
-          "%n"
-              + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-              + "%n\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
-              + "%n\tSo, while using this tool please make sure there are no in-progress commits for the source "
-              + "catalog%n"
-              + "%n"
-              + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
-              + "%n\tand can only be accessed from the target catalog.");
+  private static final String newLine = System.lineSeparator();
 
   static boolean proceedForRegistration() {
-    return proceed(WARNING_FOR_REGISTRATION);
+    consoleLog.warn(
+        "{}"
+            + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
+            + "{}\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
+            + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
+            + "catalog{}"
+            + "{}"
+            + "\tb) After the registration, successfully registered tables will be present in both source and target "
+            + "catalog. "
+            + "{}\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
+            + "loss of data, and table corruption. "
+            + "{}\tUse `migrate` command to automatically delete the table from source catalog after "
+            + "migration.",
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine);
+    return proceed();
   }
 
   static boolean proceedForMigration() {
-    return proceed(WARNING_FOR_MIGRATION);
+    consoleLog.warn(
+        "{}"
+            + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
+            + "{}\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
+            + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
+            + "catalog{}"
+            + "{}"
+            + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
+            + "{}\tand can only be accessed from the target catalog.",
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine);
+    return proceed();
   }
 
-  private static boolean proceed(String warning) {
-    consoleLog.warn(warning);
-
+  private static boolean proceed() {
     Console console = System.console();
     while (true) {
       consoleLog.info(

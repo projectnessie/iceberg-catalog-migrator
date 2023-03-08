@@ -18,7 +18,7 @@ plugins {
   `java-library`
   `maven-publish`
   alias(libs.plugins.nessie.run)
-  BuildSupport
+  `build-conventions`
 }
 
 dependencies {
@@ -67,7 +67,9 @@ dependencies {
   }
   testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
 
-  nessieQuarkusServer("org.projectnessie:nessie-quarkus:${libs.versions.nessie.get()}:runner")
+  nessieQuarkusServer(
+    "org.projectnessie.nessie:nessie-quarkus:${libs.versions.nessie.get()}:runner"
+  )
 }
 
 nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }

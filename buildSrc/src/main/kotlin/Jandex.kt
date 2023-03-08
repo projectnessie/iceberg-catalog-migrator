@@ -14,24 +14,17 @@
  * limitations under the License.
  */
 
-plugins {
-  `java-library`
-  `maven-publish`
-  `build-conventions`
-}
+import com.github.vlsi.jandex.JandexExtension
+import com.github.vlsi.jandex.JandexPlugin
+import org.gradle.api.Project
+import org.gradle.api.tasks.testing.Test
+import org.gradle.kotlin.dsl.apply
+import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.withType
 
-dependencies {
-  implementation(libs.guava)
-  implementation(libs.slf4j)
-  implementation(libs.iceberg.spark.runtime)
+fun Project.configureJandex() {
+  apply<JandexPlugin>()
+  configure<JandexExtension> { toolVersion.set(libsRequiredVersion("jandex")) }
 
-  annotationProcessor(libs.immutables)
-  compileOnly(libs.immutables)
-
-  testRuntimeOnly(libs.logback.classic)
-  testImplementation(libs.junit.jupiter.params)
-  testImplementation(libs.junit.jupiter.api)
-  testImplementation(libs.junit.jupiter.engine)
-  testImplementation(libs.assertj)
-  testImplementation(libs.hadoop.common)
+  tasks.withType<Test>().configureEach { dependsOn(tasks.named("processTestJandexIndex")) }
 }

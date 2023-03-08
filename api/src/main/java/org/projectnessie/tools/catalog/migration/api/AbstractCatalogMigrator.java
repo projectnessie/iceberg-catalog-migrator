@@ -63,8 +63,8 @@ public abstract class AbstractCatalogMigrator {
     } else {
       LOG.info(
           "Collecting all the tables from all the namespaces of source catalog"
-              + " which matches the regex pattern:"
-              + identifierRegex);
+              + " which matches the regex pattern:{}",
+          identifierRegex);
       Pattern pattern = Pattern.compile(identifierRegex);
       matchedIdentifiersPredicate =
           tableIdentifier -> pattern.matcher(tableIdentifier.toString()).matches();

@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import com.github.jengelman.gradle.plugins.shadow.ShadowPlugin
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   `java-library`
   `maven-publish`
   alias(libs.plugins.nessie.run)
-  BuildSupport
+  `build-conventions`
 }
 
 java.sourceCompatibility = JavaVersion.VERSION_1_8
@@ -37,7 +36,7 @@ dependencies {
   implementation(libs.iceberg.dell)
   implementation(libs.hadoop.aws) { exclude("com.amazonaws", "aws-java-sdk-bundle") }
   implementation(libs.hadoop.common)
-  // AWS depdencies based on https://iceberg.apache.org/docs/latest/aws/#enabling-aws-integration
+  // AWS dependencies based on https://iceberg.apache.org/docs/latest/aws/#enabling-aws-integration
   implementation(libs.aws.sdk.glue)
   implementation(libs.aws.sdk.s3)
   implementation(libs.aws.sdk.dynamo)
@@ -86,7 +85,9 @@ dependencies {
   }
   testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
 
-  nessieQuarkusServer("org.projectnessie:nessie-quarkus:${libs.versions.nessie.get()}:runner")
+  nessieQuarkusServer(
+    "org.projectnessie.nessie:nessie-quarkus:${libs.versions.nessie.get()}:runner"
+  )
 }
 
 nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }
@@ -130,23 +131,4 @@ val unixExecutable by
 shadowJar {
   manifest { attributes["Main-Class"] = mainClassName }
   finalizedBy(unixExecutable)
-}
-
-fun Project.applyShadowJar() {
-  plugins.apply(ShadowPlugin::class.java)
-
-  plugins.withType<ShadowPlugin>().configureEach {
-    val shadowJar =
-      tasks.named<ShadowJar>("shadowJar") {
-        isZip64 = true // as the package has more than 65535 files
-        outputs.cacheIf { false } // do not cache uber/shaded jars
-        archiveClassifier.set("")
-        mergeServiceFiles()
-      }
-
-    tasks.named<Jar>("jar") {
-      dependsOn(shadowJar)
-      archiveClassifier.set("raw")
-    }
-  }
 }

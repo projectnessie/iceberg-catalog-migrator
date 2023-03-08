@@ -175,10 +175,10 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     if (deleteSourceCatalogTables) {
       if (sourceCatalog instanceof HadoopCatalog) {
         consoleLog.warn(
-            String.format(
-                "Source catalog type is HADOOP and it doesn't support dropping tables just from "
-                    + "catalog. %nAvoid operating the migrated tables from the source catalog after migration. "
-                    + "Use the tables from target catalog."));
+            "Source catalog type is HADOOP and it doesn't support dropping tables just from "
+                + "catalog. {}Avoid operating the migrated tables from the source catalog after migration. "
+                + "Use the tables from target catalog.",
+            System.lineSeparator());
       }
       return PromptUtil.proceedForMigration();
     } else {
@@ -212,13 +212,13 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     }
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
       consoleLog.info(
-          String.format(
-              "Failed to delete %d tables from %s catalog. "
-                  + "Please check the `catalog_migration.log` file for the reason. "
-                  + "%nFailed to delete identifiers are written into `%s`.",
-              result.failedToDeleteTableIdentifiers().size(),
-              sourceCatalogName,
-              FAILED_TO_DELETE_AT_SOURCE_FILE));
+          "Failed to delete {} tables from {} catalog. "
+              + "Please check the `catalog_migration.log` file for the reason. "
+              + "{}Failed to delete identifiers are written into `{}`.",
+          result.failedToDeleteTableIdentifiers().size(),
+          sourceCatalogName,
+          System.lineSeparator(),
+          FAILED_TO_DELETE_AT_SOURCE_FILE);
     }
   }
 
@@ -226,19 +226,25 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     consoleLog.info("Details: ");
     if (!result.registeredTableIdentifiers().isEmpty()) {
       consoleLog.info(
-          "Successfully {} these tables:", deleteSourceCatalogTables ? "migrated" : "registered");
-      consoleLog.info("{}", result.registeredTableIdentifiers());
+          "Successfully {} these tables:{}{}",
+          deleteSourceCatalogTables ? "migrated" : "registered",
+          System.lineSeparator(),
+          result.registeredTableIdentifiers());
     }
 
     if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
       consoleLog.info(
-          "Failed to {} these tables:", deleteSourceCatalogTables ? "migrate" : "register");
-      consoleLog.info("{}", result.failedToRegisterTableIdentifiers());
+          "Failed to {} these tables:{}{}",
+          deleteSourceCatalogTables ? "migrate" : "register",
+          System.lineSeparator(),
+          result.failedToRegisterTableIdentifiers());
     }
 
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
-      consoleLog.warn("Failed to delete these tables from source catalog:");
-      consoleLog.info("{}", result.failedToDeleteTableIdentifiers());
+      consoleLog.warn(
+          "Failed to delete these tables from source catalog:{}{}",
+          System.lineSeparator(),
+          result.failedToDeleteTableIdentifiers());
     }
   }
 
@@ -259,9 +265,10 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
     consoleLog.info("Details: ");
     consoleLog.info(
-        "Identified these tables for {} by dry-run:",
-        deleteSourceCatalogTables ? "migration" : "registration");
-    consoleLog.info("{}", result);
+        "Identified these tables for {} by dry-run:{}{}",
+        deleteSourceCatalogTables ? "migration" : "registration",
+        System.lineSeparator(),
+        result);
   }
 
   private static void writeToFile(Path filePath, List<TableIdentifier> identifiers) {

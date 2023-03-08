@@ -26,11 +26,20 @@ repositories {
 
 dependencies {
   implementation(gradleKotlinDsl())
-  val ver = libs.versions
-  implementation("com.diffplug.spotless:spotless-plugin-gradle:${ver.spotlessPlugin.get()}")
-  implementation("gradle.plugin.com.github.johnrengelman:shadow:${ver.shadowPlugin.get()}")
-  val nessieVer = ver.nessieBuildPlugins.get()
-  implementation("org.projectnessie.buildsupport:spotless:$nessieVer")
+  implementation(baselibs.spotless)
+  implementation(baselibs.jandex)
+  implementation(baselibs.idea.ext)
+  implementation(baselibs.shadow)
+  implementation(baselibs.protobuf)
+  implementation(baselibs.errorprone)
+  implementation(baselibs.nessie.buildsupport.jacoco)
+  implementation(baselibs.nessie.buildsupport.reflectionconfig)
+
+  testImplementation(platform(baselibs.junit.bom))
+  testImplementation(baselibs.assertj.core)
+  testImplementation(baselibs.junit.jupiter.api)
+  testImplementation(baselibs.junit.jupiter.params)
+  testRuntimeOnly(baselibs.junit.jupiter.engine)
 }
 
 java {
@@ -39,3 +48,5 @@ java {
 }
 
 kotlinDslPluginOptions { jvmTarget.set(JavaVersion.VERSION_11.toString()) }
+
+tasks.withType<Test>().configureEach { useJUnitPlatform() }

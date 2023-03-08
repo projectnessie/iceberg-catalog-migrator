@@ -14,24 +14,9 @@
  * limitations under the License.
  */
 
-plugins {
-  `java-library`
-  `maven-publish`
-  `build-conventions`
-}
+import org.gradle.api.Project
 
-dependencies {
-  implementation(libs.guava)
-  implementation(libs.slf4j)
-  implementation(libs.iceberg.spark.runtime)
-
-  annotationProcessor(libs.immutables)
-  compileOnly(libs.immutables)
-
-  testRuntimeOnly(libs.logback.classic)
-  testImplementation(libs.junit.jupiter.params)
-  testImplementation(libs.junit.jupiter.api)
-  testImplementation(libs.junit.jupiter.engine)
-  testImplementation(libs.assertj)
-  testImplementation(libs.hadoop.common)
+open class PublishingHelperExtension(project: Project) {
+  val nessieRepoName = project.objects.property(String::class.java)
+  val inceptionYear = project.objects.property(String::class.java)
 }
