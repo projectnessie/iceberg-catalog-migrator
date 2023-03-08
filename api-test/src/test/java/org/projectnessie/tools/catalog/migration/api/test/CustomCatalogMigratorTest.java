@@ -32,8 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrationResult;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
-import org.projectnessie.tools.catalog.migration.api.CatalogMigratorParams;
-import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigratorParams;
+import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
 
 public class CustomCatalogMigratorTest extends AbstractTest {
 
@@ -65,14 +64,12 @@ public class CustomCatalogMigratorTest extends AbstractTest {
 
   @Test
   public void testRegister() {
-    CatalogMigratorParams params =
-        ImmutableCatalogMigratorParams.builder()
+    CatalogMigrator catalogMigrator =
+        ImmutableCatalogMigrator.builder()
             .sourceCatalog(catalog1)
             .targetCatalog(catalog2)
             .deleteEntriesFromSourceCatalog(true)
             .build();
-
-    CatalogMigrator catalogMigrator = new CatalogMigrator(params);
     // should fail to register as catalog doesn't support register table operations.
     CatalogMigrationResult result =
         catalogMigrator.registerTables(catalogMigrator.getMatchingTableIdentifiers(null)).result();

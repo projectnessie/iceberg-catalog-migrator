@@ -28,7 +28,7 @@ public class TargetCatalogOptions {
       description =
           "target catalog type. "
               + "Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, NESSIE, REST]")
-  private CatalogUtil.CatalogType type;
+  protected CatalogUtil.CatalogType type;
 
   @CommandLine.Option(
       names = "--target-catalog-properties",

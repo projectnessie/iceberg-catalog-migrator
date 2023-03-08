@@ -27,11 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrationResult;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
-import org.projectnessie.tools.catalog.migration.api.CatalogMigratorParams;
-import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigratorParams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
@@ -73,8 +70,6 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
       description = "optional configuration to disable warning prompts which needs console input.")
   private boolean disablePrompts;
 
-  private boolean deleteSourceCatalogTables;
-
   private static final int BATCH_SIZE = 100;
   public static final String FAILED_IDENTIFIERS_FILE = "failed_identifiers.txt";
   public static final String FAILED_TO_DELETE_AT_SOURCE_FILE = "failed_to_delete_at_source.txt";
@@ -84,15 +79,21 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
   public BaseRegisterCommand() {}
 
-  protected abstract boolean isDeleteSourceCatalogTables();
+  protected abstract CatalogMigrator catalogMigrator(Catalog sourceCatalog, Catalog targetCatalog);
+
+  protected abstract boolean canProceed(Catalog sourceCatalog);
+
+  protected abstract String operation();
+
+  protected abstract String operated();
+
+  protected abstract String operate();
 
   @Override
   public Integer call() {
-    List<TableIdentifier> identifiers;
+    List<TableIdentifier> identifiers = Collections.emptyList();
     if (identifierOptions != null) {
       identifiers = identifierOptions.processIdentifiersInput();
-    } else {
-      identifiers = Collections.emptyList();
     }
 
     Catalog sourceCatalog = sourceCatalogOptions.build();
@@ -101,18 +102,11 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     Catalog targetCatalog = targetCatalogOptions.build();
     consoleLog.info("Configured target catalog: {}", targetCatalog.name());
 
-    if (!canProceed(sourceCatalog)) {
+    if (!isDryRun && !disablePrompts && !canProceed(sourceCatalog)) {
       return 0;
     }
 
-    deleteSourceCatalogTables = isDeleteSourceCatalogTables();
-    CatalogMigratorParams params =
-        ImmutableCatalogMigratorParams.builder()
-            .sourceCatalog(sourceCatalog)
-            .targetCatalog(targetCatalog)
-            .deleteEntriesFromSourceCatalog(deleteSourceCatalogTables)
-            .build();
-    CatalogMigrator catalogMigrator = new CatalogMigrator(params);
+    CatalogMigrator catalogMigrator = catalogMigrator(sourceCatalog, targetCatalog);
 
     String identifierRegEx = identifierOptions != null ? identifierOptions.identifiersRegEx : null;
     if (identifiers.isEmpty()) {
@@ -130,17 +124,14 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
       identifiers = catalogMigrator.getMatchingTableIdentifiers(identifierRegEx);
     }
 
-    String operation = deleteSourceCatalogTables ? "migration" : "registration";
-    consoleLog.info("Identified {} tables for {}.", identifiers.size(), operation);
+    consoleLog.info("Identified {} tables for {}.", identifiers.size(), operation());
 
     if (isDryRun) {
-      writeToFile(outputDirPath.resolve(DRY_RUN_FILE), identifiers);
-      consoleLog.info("Dry run is completed.");
-      printDryRunResults(identifiers);
+      handleDryRunResult(identifiers);
       return 0;
     }
 
-    consoleLog.info("Started {} ...", operation);
+    consoleLog.info("Started {} ...", operation());
 
     List<List<TableIdentifier>> identifierBatches = Lists.partition(identifiers, BATCH_SIZE);
     int totalIdentifiers = identifiers.size();
@@ -150,52 +141,42 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
           catalogMigrator.registerTables(identifierBatch);
           consoleLog.info(
               "Attempted {} for {} tables out of {} tables.",
-              operation,
+              operation(),
               counter.addAndGet(identifierBatch.size()),
               totalIdentifiers);
         });
 
-    CatalogMigrationResult result = catalogMigrator.result();
+    handleResults(catalogMigrator.result());
+    return 0;
+  }
+
+  private void handleResults(CatalogMigrationResult result) {
     writeToFile(
         outputDirPath.resolve(FAILED_IDENTIFIERS_FILE), result.failedToRegisterTableIdentifiers());
     writeToFile(
         outputDirPath.resolve(FAILED_TO_DELETE_AT_SOURCE_FILE),
         result.failedToDeleteTableIdentifiers());
 
-    consoleLog.info("Finished {} ...", operation);
-    printSummary(result, sourceCatalog.name(), targetCatalog.name());
+    consoleLog.info("Finished {} ...", operation());
+    printSummary(result);
     printDetails(result);
-    return 0;
   }
 
-  private boolean canProceed(Catalog sourceCatalog) {
-    if (isDryRun || disablePrompts) {
-      return true;
-    }
-    if (deleteSourceCatalogTables) {
-      if (sourceCatalog instanceof HadoopCatalog) {
-        consoleLog.warn(
-            "Source catalog type is HADOOP and it doesn't support dropping tables just from "
-                + "catalog. {}Avoid operating the migrated tables from the source catalog after migration. "
-                + "Use the tables from target catalog.",
-            System.lineSeparator());
-      }
-      return PromptUtil.proceedForMigration();
-    } else {
-      return PromptUtil.proceedForRegistration();
-    }
+  private void handleDryRunResult(List<TableIdentifier> identifiers) {
+    writeToFile(outputDirPath.resolve(DRY_RUN_FILE), identifiers);
+    consoleLog.info("Dry run is completed.");
+    printDryRunResult(identifiers);
   }
 
-  private void printSummary(
-      CatalogMigrationResult result, String sourceCatalogName, String targetCatalogName) {
+  private void printSummary(CatalogMigrationResult result) {
     consoleLog.info("Summary: ");
     if (!result.registeredTableIdentifiers().isEmpty()) {
       consoleLog.info(
           "Successfully {} {} tables from {} catalog to {} catalog.",
-          deleteSourceCatalogTables ? "migrated" : "registered",
+          operated(),
           result.registeredTableIdentifiers().size(),
-          sourceCatalogName,
-          targetCatalogName);
+          sourceCatalogOptions.type.name(),
+          targetCatalogOptions.type.name());
     }
     if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
       consoleLog.info(
@@ -204,10 +185,10 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
               + "Failed identifiers are written into `{}`. "
               + "Retry with that file using `--identifiers-from-file` option "
               + "if the failure is because of network/connection timeouts.",
-          deleteSourceCatalogTables ? "migrate" : "register",
+          operate(),
           result.failedToRegisterTableIdentifiers().size(),
-          sourceCatalogName,
-          targetCatalogName,
+          sourceCatalogOptions.type.name(),
+          targetCatalogOptions.type.name(),
           FAILED_IDENTIFIERS_FILE);
     }
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
@@ -216,7 +197,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
               + "Please check the `catalog_migration.log` file for the reason. "
               + "{}Failed to delete identifiers are written into `{}`.",
           result.failedToDeleteTableIdentifiers().size(),
-          sourceCatalogName,
+          sourceCatalogOptions.type.name(),
           System.lineSeparator(),
           FAILED_TO_DELETE_AT_SOURCE_FILE);
     }
@@ -227,7 +208,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     if (!result.registeredTableIdentifiers().isEmpty()) {
       consoleLog.info(
           "Successfully {} these tables:{}{}",
-          deleteSourceCatalogTables ? "migrated" : "registered",
+          operated(),
           System.lineSeparator(),
           result.registeredTableIdentifiers());
     }
@@ -235,7 +216,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
       consoleLog.info(
           "Failed to {} these tables:{}{}",
-          deleteSourceCatalogTables ? "migrate" : "register",
+          operate(),
           System.lineSeparator(),
           result.failedToRegisterTableIdentifiers());
     }
@@ -248,25 +229,24 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     }
   }
 
-  private void printDryRunResults(List<TableIdentifier> result) {
+  private void printDryRunResult(List<TableIdentifier> result) {
     consoleLog.info("Summary: ");
     if (result.isEmpty()) {
       consoleLog.info(
-          "No tables are identified for {}. Please check logs for more info.",
-          deleteSourceCatalogTables ? "migration" : "registration");
+          "No tables are identified for {}. Please check logs for more info.", operation());
       return;
     }
     consoleLog.info(
         "Identified {} tables for {} by dry-run. These identifiers are also written into {}. "
             + "You can use this file with `--identifiers-from-file` option.",
         result.size(),
-        deleteSourceCatalogTables ? "migration" : "registration",
+        operation(),
         DRY_RUN_FILE);
 
-    consoleLog.info("Details: ");
     consoleLog.info(
-        "Identified these tables for {} by dry-run:{}{}",
-        deleteSourceCatalogTables ? "migration" : "registration",
+        "Details: {}Identified these tables for {} by dry-run:{}{}",
+        System.lineSeparator(),
+        operation(),
         System.lineSeparator(),
         result);
   }

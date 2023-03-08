@@ -17,9 +17,10 @@ package org.projectnessie.tools.catalog.migration.api.test;
 
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Schema;
@@ -37,6 +38,9 @@ public abstract class AbstractTest {
 
   protected static @TempDir Path logDir;
 
+  private static final List<Namespace> namespaceList =
+      Arrays.asList(Namespace.of("foo"), Namespace.of("bar"), Namespace.of("db1"));
+
   @BeforeAll
   protected static void initLogDir() {
     System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
@@ -49,6 +53,24 @@ public abstract class AbstractTest {
       new Schema(
           Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get())).fields());
 
+  protected static void createNamespaces() {
+    namespaceList.forEach(namespace -> ((SupportsNamespaces) catalog1).createNamespace(namespace));
+    // don't create "db1" namespace in catalog2
+    namespaceList
+        .subList(0, 2)
+        .forEach(namespace -> ((SupportsNamespaces) catalog2).createNamespace(namespace));
+  }
+
+  protected static void dropNamespaces() {
+    Stream.of(catalog1, catalog2)
+        .map(catalog -> (SupportsNamespaces) catalog)
+        .forEach(
+            catalog ->
+                namespaceList.stream()
+                    .filter(catalog::namespaceExists)
+                    .forEach(catalog::dropNamespace));
+  }
+
   protected static void createTables() {
     // two tables in 'foo' namespace
     catalog1.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl1"), schema);
@@ -58,20 +80,14 @@ public abstract class AbstractTest {
     catalog1.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl4"), schema);
   }
 
-  protected static void createNamespaces() {
-    ((SupportsNamespaces) catalog1).createNamespace(Namespace.of("foo"), Collections.emptyMap());
-    ((SupportsNamespaces) catalog1).createNamespace(Namespace.of("bar"), Collections.emptyMap());
-
-    ((SupportsNamespaces) catalog2).createNamespace(Namespace.of("foo"), Collections.emptyMap());
-    ((SupportsNamespaces) catalog2).createNamespace(Namespace.of("bar"), Collections.emptyMap());
-  }
-
-  protected static void dropNamespaces() {
-    ((SupportsNamespaces) catalog1).dropNamespace(Namespace.of("foo"));
-    ((SupportsNamespaces) catalog1).dropNamespace(Namespace.of("bar"));
-
-    ((SupportsNamespaces) catalog2).dropNamespace(Namespace.of("foo"));
-    ((SupportsNamespaces) catalog2).dropNamespace(Namespace.of("bar"));
+  protected static void dropTables() {
+    Stream.of(catalog1, catalog2)
+        .forEach(
+            catalog ->
+                namespaceList.stream()
+                    .filter(namespace -> ((SupportsNamespaces) catalog).namespaceExists(namespace))
+                    .forEach(
+                        namespace -> catalog.listTables(namespace).forEach(catalog::dropTable)));
   }
 
   protected static Catalog createHadoopCatalog(String warehousePath, String name) {
@@ -89,14 +105,5 @@ public abstract class AbstractTest {
     properties.put("uri", uri);
     return CatalogUtil.loadCatalog(
         NessieCatalog.class.getName(), "nessie", properties, new Configuration());
-  }
-
-  protected static void dropTables() {
-    Arrays.asList(Namespace.of("foo"), Namespace.of("bar"))
-        .forEach(
-            namespace -> {
-              catalog1.listTables(namespace).forEach(catalog1::dropTable);
-              catalog2.listTables(namespace).forEach(catalog2::dropTable);
-            });
   }
 }

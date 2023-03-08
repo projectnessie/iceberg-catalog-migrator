@@ -28,7 +28,7 @@ public class SourceCatalogOptions {
       description =
           "source catalog type. "
               + "Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, NESSIE, REST]")
-  private org.projectnessie.tools.catalog.migration.cli.CatalogUtil.CatalogType type;
+  protected org.projectnessie.tools.catalog.migration.cli.CatalogUtil.CatalogType type;
 
   @CommandLine.Option(
       names = "--source-catalog-properties",

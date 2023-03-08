@@ -68,14 +68,12 @@ public class UnsupportedNamespaceTest {
     Catalog catalog1 = new TestCatalog();
     Catalog catalog2 = new TestCatalog();
 
-    CatalogMigratorParams params =
-        ImmutableCatalogMigratorParams.builder()
+    CatalogMigrator catalogMigrator =
+        ImmutableCatalogMigrator.builder()
             .sourceCatalog(catalog1)
             .targetCatalog(catalog2)
             .deleteEntriesFromSourceCatalog(true)
             .build();
-
-    CatalogMigrator catalogMigrator = new CatalogMigrator(params);
 
     Assertions.assertThatThrownBy(() -> catalogMigrator.getMatchingTableIdentifiers(null))
         .isInstanceOf(UnsupportedOperationException.class)

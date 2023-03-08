@@ -31,7 +31,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrationResult;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
-import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigratorParams;
+import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
 
 public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
@@ -91,9 +91,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @ValueSource(booleans = {true, false})
   public void testRegisterSelectedTables(boolean deleteSourceTables) {
     // using `--identifiers` option
-    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrationResult result =
-        new CatalogMigrator(builder.build())
+        catalogMigratorWithDefaultArgs(deleteSourceTables)
             .registerTables(Collections.singletonList(TableIdentifier.parse("bar.tbl3")))
             .result();
     Assertions.assertThat(result.registeredTableIdentifiers())
@@ -106,8 +105,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
         .containsExactly(TableIdentifier.parse("bar.tbl3"));
 
     // using --identifiers-regex option which matches all the tables starts with "foo."
-    builder = builderWithDefaultArgs(deleteSourceTables);
-    CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
+    CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
     result =
         catalogMigrator
             .registerTables(catalogMigrator.getMatchingTableIdentifiers("^foo\\..*"))
@@ -130,9 +128,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @ValueSource(booleans = {true, false})
   public void testRegisterError(boolean deleteSourceTables) {
     // use invalid namespace which leads to NoSuchTableException
-    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrationResult result =
-        new CatalogMigrator(builder.build())
+        catalogMigratorWithDefaultArgs(deleteSourceTables)
             .registerTables(Collections.singletonList(TableIdentifier.parse("dummy.tbl3")))
             .result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
@@ -141,9 +138,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     // try to register same table twice which leads to AlreadyExistsException
-    builder = builderWithDefaultArgs(deleteSourceTables);
     result =
-        new CatalogMigrator(builder.build())
+        catalogMigratorWithDefaultArgs(deleteSourceTables)
             .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")))
             .result();
     Assertions.assertThat(result.registeredTableIdentifiers())
@@ -151,9 +147,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    builder = builderWithDefaultArgs(deleteSourceTables);
     result =
-        new CatalogMigrator(builder.build())
+        catalogMigratorWithDefaultArgs(deleteSourceTables)
             .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")))
             .result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
@@ -167,9 +162,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @ValueSource(booleans = {true, false})
   public void testRegisterWithFewFailures(boolean deleteSourceTables) {
     // register only foo.tbl2
-    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
     CatalogMigrationResult result =
-        new CatalogMigrator(builder.build())
+        catalogMigratorWithDefaultArgs(deleteSourceTables)
             .registerTables(Collections.singletonList(TableIdentifier.parse("foo.tbl2")))
             .result();
     Assertions.assertThat(result.registeredTableIdentifiers())
@@ -206,12 +200,12 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @ValueSource(booleans = {true, false})
   public void testRegisterNoTables(boolean deleteSourceTables) {
     // source catalog is catalog2 which has no tables.
-    ImmutableCatalogMigratorParams.Builder builder =
-        ImmutableCatalogMigratorParams.builder()
+    CatalogMigrator catalogMigrator =
+        ImmutableCatalogMigrator.builder()
             .sourceCatalog(catalog2)
             .targetCatalog(catalog1)
-            .deleteEntriesFromSourceCatalog(deleteSourceTables);
-    CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
+            .deleteEntriesFromSourceCatalog(deleteSourceTables)
+            .build();
     List<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
     Assertions.assertThat(matchingTableIdentifiers).isEmpty();
@@ -250,8 +244,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testListingTableIdentifiers(boolean deleteSourceTables) {
-    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
-    CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
+    CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
 
     List<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
@@ -268,19 +261,39 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
   }
 
+  @Order(7)
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  public void testRegisterWithNewNamespace(boolean deleteSourceTables) {
+    // catalog2 doesn't have a namespace "db1"
+    catalog1.createTable(TableIdentifier.of(Namespace.of("db1"), "tbl5"), schema);
+
+    CatalogMigrationResult result =
+        catalogMigratorWithDefaultArgs(deleteSourceTables)
+            .registerTables(Collections.singletonList(TableIdentifier.parse("db1.tbl5")))
+            .result();
+
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .containsExactly(TableIdentifier.parse("db1.tbl5"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
+
+    Assertions.assertThat(catalog2.listTables(Namespace.of("db1")))
+        .containsExactly(TableIdentifier.parse("db1.tbl5"));
+  }
+
   private CatalogMigrationResult registerAllTables(boolean deleteSourceTables) {
-    ImmutableCatalogMigratorParams.Builder builder = builderWithDefaultArgs(deleteSourceTables);
-    CatalogMigrator catalogMigrator = new CatalogMigrator(builder.build());
+    CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
     return catalogMigrator
         .registerTables(catalogMigrator.getMatchingTableIdentifiers(null))
         .result();
   }
 
-  private ImmutableCatalogMigratorParams.Builder builderWithDefaultArgs(
-      boolean deleteSourceTables) {
-    return ImmutableCatalogMigratorParams.builder()
+  private CatalogMigrator catalogMigratorWithDefaultArgs(boolean deleteSourceTables) {
+    return ImmutableCatalogMigrator.builder()
         .sourceCatalog(catalog1)
         .targetCatalog(catalog2)
-        .deleteEntriesFromSourceCatalog(deleteSourceTables);
+        .deleteEntriesFromSourceCatalog(deleteSourceTables)
+        .build();
   }
 }

@@ -15,6 +15,12 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
+import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -31,8 +37,41 @@ import picocli.CommandLine;
             + "catalog.")
 public class MigrateCommand extends BaseRegisterCommand {
 
+  private final Logger consoleLog = LoggerFactory.getLogger("console-log");
+
   @Override
-  protected boolean isDeleteSourceCatalogTables() {
-    return true;
+  protected CatalogMigrator catalogMigrator(Catalog sourceCatalog, Catalog targetCatalog) {
+    return ImmutableCatalogMigrator.builder()
+        .sourceCatalog(sourceCatalog)
+        .targetCatalog(targetCatalog)
+        .deleteEntriesFromSourceCatalog(true)
+        .build();
+  }
+
+  @Override
+  protected boolean canProceed(Catalog sourceCatalog) {
+    if (sourceCatalog instanceof HadoopCatalog) {
+      consoleLog.warn(
+          "Source catalog type is HADOOP and it doesn't support dropping tables just from "
+              + "catalog. {}Avoid operating the migrated tables from the source catalog after migration. "
+              + "Use the tables from target catalog.",
+          System.lineSeparator());
+    }
+    return PromptUtil.proceedForMigration();
+  }
+
+  @Override
+  protected String operation() {
+    return "migration";
+  }
+
+  @Override
+  protected String operated() {
+    return "migrated";
+  }
+
+  @Override
+  protected String operate() {
+    return "migrate";
   }
 }

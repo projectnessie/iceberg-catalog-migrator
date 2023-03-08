@@ -15,6 +15,9 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import org.apache.iceberg.catalog.Catalog;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
+import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -30,7 +33,31 @@ import picocli.CommandLine;
 public class RegisterCommand extends BaseRegisterCommand {
 
   @Override
-  protected boolean isDeleteSourceCatalogTables() {
-    return false;
+  protected CatalogMigrator catalogMigrator(Catalog sourceCatalog, Catalog targetCatalog) {
+    return ImmutableCatalogMigrator.builder()
+        .sourceCatalog(sourceCatalog)
+        .targetCatalog(targetCatalog)
+        .deleteEntriesFromSourceCatalog(false)
+        .build();
+  }
+
+  @Override
+  protected boolean canProceed(Catalog sourceCatalog) {
+    return PromptUtil.proceedForRegistration();
+  }
+
+  @Override
+  protected String operation() {
+    return "registration";
+  }
+
+  @Override
+  protected String operated() {
+    return "registered";
+  }
+
+  @Override
+  protected String operate() {
+    return "register";
   }
 }

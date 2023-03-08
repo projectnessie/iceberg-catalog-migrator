@@ -16,7 +16,9 @@
 package org.projectnessie.tools.catalog.migration.api;
 
 import java.nio.file.Path;
+import java.util.Collections;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -39,17 +41,18 @@ public class CatalogMigratorParamsTest {
 
     Assertions.assertThatThrownBy(
             () ->
-                ImmutableCatalogMigratorParams.builder()
+                ImmutableCatalogMigrator.builder()
                     .sourceCatalog(catalog2) // source-catalog is same as target catalog
                     .targetCatalog(catalog2)
                     .deleteEntriesFromSourceCatalog(true)
-                    .build())
+                    .build()
+                    .registerTables(Collections.singletonList(TableIdentifier.parse("foo.abc"))))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("target catalog is same as source catalog");
 
     Assertions.assertThatThrownBy(
             () ->
-                ImmutableCatalogMigratorParams.builder()
+                ImmutableCatalogMigrator.builder()
                     .sourceCatalog(catalog1)
                     .targetCatalog(null) // target-catalog is null
                     .deleteEntriesFromSourceCatalog(true)
@@ -59,7 +62,7 @@ public class CatalogMigratorParamsTest {
 
     Assertions.assertThatThrownBy(
             () ->
-                ImmutableCatalogMigratorParams.builder()
+                ImmutableCatalogMigrator.builder()
                     .sourceCatalog(null) // source-catalog is null
                     .targetCatalog(catalog2)
                     .deleteEntriesFromSourceCatalog(true)
