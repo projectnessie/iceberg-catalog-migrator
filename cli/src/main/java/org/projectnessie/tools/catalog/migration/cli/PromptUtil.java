@@ -25,10 +25,11 @@ public final class PromptUtil {
 
   private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
   private static final String newLine = System.lineSeparator();
+  static final String ANSI_YELLOW = "\u001B[33m";
 
   static boolean proceedForRegistration() {
     consoleLog.warn(
-        "{}"
+        "{}{}"
             + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
             + "{}\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
             + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
@@ -40,6 +41,7 @@ public final class PromptUtil {
             + "loss of data, and table corruption. "
             + "{}\tUse `migrate` command to automatically delete the table from source catalog after "
             + "migration.",
+        ANSI_YELLOW,
         newLine,
         newLine,
         newLine,
@@ -52,7 +54,7 @@ public final class PromptUtil {
 
   static boolean proceedForMigration() {
     consoleLog.warn(
-        "{}"
+        "{}{}"
             + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
             + "{}\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
             + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
@@ -60,6 +62,7 @@ public final class PromptUtil {
             + "{}"
             + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
             + "{}\tand can only be accessed from the target catalog.",
+        ANSI_YELLOW,
         newLine,
         newLine,
         newLine,

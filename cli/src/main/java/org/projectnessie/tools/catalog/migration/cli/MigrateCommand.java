@@ -15,6 +15,8 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import static org.projectnessie.tools.catalog.migration.cli.PromptUtil.ANSI_YELLOW;
+
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
@@ -52,9 +54,10 @@ public class MigrateCommand extends BaseRegisterCommand {
   protected boolean canProceed(Catalog sourceCatalog) {
     if (sourceCatalog instanceof HadoopCatalog) {
       consoleLog.warn(
-          "Source catalog type is HADOOP and it doesn't support dropping tables just from "
+          "{}Source catalog type is HADOOP and it doesn't support dropping tables just from "
               + "catalog. {}Avoid operating the migrated tables from the source catalog after migration. "
               + "Use the tables from target catalog.",
+          ANSI_YELLOW,
           System.lineSeparator());
     }
     return PromptUtil.proceedForMigration();

@@ -16,7 +16,8 @@
     limitations under the License.
 
 -->
-<configuration debug="true">
+<configuration>
+  <statusListener class="ch.qos.logback.core.status.NopStatusListener"/>
   <property name="catalog.migration.log.dir" value="${catalog.migration.log.dir:-logs}"/>
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
     <file>${catalog.migration.log.dir}/catalog_migration.log</file>

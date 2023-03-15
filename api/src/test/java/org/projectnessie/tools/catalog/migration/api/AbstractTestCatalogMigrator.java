@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catalog.migration.api.test;
+package org.projectnessie.tools.catalog.migration.api;
 
 import java.nio.file.Path;
 import java.util.Collections;
@@ -29,9 +29,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.projectnessie.tools.catalog.migration.api.CatalogMigrationResult;
-import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
-import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
+import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
 
 public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
@@ -282,18 +280,18 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
         .containsExactly(TableIdentifier.parse("db1.tbl5"));
   }
 
-  private CatalogMigrationResult registerAllTables(boolean deleteSourceTables) {
-    CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
-    return catalogMigrator
-        .registerTables(catalogMigrator.getMatchingTableIdentifiers(null))
-        .result();
-  }
-
-  private CatalogMigrator catalogMigratorWithDefaultArgs(boolean deleteSourceTables) {
+  protected CatalogMigrator catalogMigratorWithDefaultArgs(boolean deleteSourceTables) {
     return ImmutableCatalogMigrator.builder()
         .sourceCatalog(catalog1)
         .targetCatalog(catalog2)
         .deleteEntriesFromSourceCatalog(deleteSourceTables)
         .build();
+  }
+
+  private CatalogMigrationResult registerAllTables(boolean deleteSourceTables) {
+    CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
+    return catalogMigrator
+        .registerTables(catalogMigrator.getMatchingTableIdentifiers(null))
+        .result();
   }
 }

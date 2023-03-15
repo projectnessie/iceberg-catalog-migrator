@@ -17,59 +17,13 @@
 plugins {
   `java-library`
   `maven-publish`
-  alias(libs.plugins.nessie.run)
   `build-conventions`
 }
 
 dependencies {
-  implementation(libs.slf4j)
-  implementation(libs.picocli)
+  implementation(libs.guava)
   implementation(libs.hadoop.common)
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.junit.jupiter.api)
   implementation("org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests")
-
-  testImplementation(project(":iceberg-catalog-migrator-api"))
-
-  testRuntimeOnly(libs.logback.classic)
-  testImplementation(libs.assertj)
-  testImplementation(libs.junit.jupiter.params)
-  implementation(libs.junit.jupiter.engine)
-
-  // for integration tests
-  testImplementation("org.apache.hive:hive-metastore:${libs.versions.hive.get()}") {
-    // these are taken from iceberg repo configurations
-    exclude("org.apache.avro", "avro")
-    exclude("org.slf4j", "slf4j-log4j12")
-    exclude("org.pentaho") // missing dependency
-    exclude("org.apache.hbase")
-    exclude("org.apache.logging.log4j")
-    exclude("co.cask.tephra")
-    exclude("com.google.code.findbugs", "jsr305")
-    exclude("org.eclipse.jetty.aggregate", "jetty-all")
-    exclude("org.eclipse.jetty.orbit", "javax.servlet")
-    exclude("org.apache.parquet", "parquet-hadoop-bundle")
-    exclude("com.tdunning", "json")
-    exclude("javax.transaction", "transaction-api")
-    exclude("com.zaxxer", "HikariCP")
-  }
-  testImplementation("org.apache.hive:hive-exec:${libs.versions.hive.get()}:core") {
-    // these are taken from iceberg repo configurations
-    exclude("org.apache.avro", "avro")
-    exclude("org.slf4j", "slf4j-log4j12")
-    exclude("org.pentaho") // missing dependency
-    exclude("org.apache.hive", "hive-llap-tez")
-    exclude("org.apache.logging.log4j")
-    exclude("com.google.protobuf", "protobuf-java")
-    exclude("org.apache.calcite")
-    exclude("org.apache.calcite.avatica")
-    exclude("com.google.code.findbugs", "jsr305")
-  }
-  testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
-
-  nessieQuarkusServer(
-    "org.projectnessie.nessie:nessie-quarkus:${libs.versions.nessie.get()}:runner"
-  )
 }
-
-nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }

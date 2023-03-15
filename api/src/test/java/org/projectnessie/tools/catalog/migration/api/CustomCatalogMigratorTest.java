@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catalog.migration.api.test;
+package org.projectnessie.tools.catalog.migration.api;
 
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -30,9 +30,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.projectnessie.tools.catalog.migration.api.CatalogMigrationResult;
-import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
-import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
+import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
 
 public class CustomCatalogMigratorTest extends AbstractTest {
 

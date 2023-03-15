@@ -15,6 +15,8 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import static org.projectnessie.tools.catalog.migration.cli.PromptUtil.ANSI_YELLOW;
+
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -223,7 +225,8 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
       consoleLog.warn(
-          "Failed to delete these tables from source catalog:{}{}",
+          "{}Failed to delete these tables from source catalog:{}{}",
+          ANSI_YELLOW,
           System.lineSeparator(),
           result.failedToDeleteTableIdentifiers());
     }

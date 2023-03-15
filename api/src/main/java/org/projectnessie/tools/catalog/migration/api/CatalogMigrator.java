@@ -16,6 +16,7 @@
 package org.projectnessie.tools.catalog.migration.api;
 
 import com.google.common.base.Preconditions;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
@@ -141,7 +142,13 @@ public abstract class CatalogMigrator {
   private boolean registerTable(TableIdentifier tableIdentifier) {
     try {
       if (!((SupportsNamespaces) targetCatalog()).namespaceExists(tableIdentifier.namespace())) {
-        ((SupportsNamespaces) targetCatalog()).createNamespace(tableIdentifier.namespace());
+        String[] levels = tableIdentifier.namespace().levels();
+        for (int index = 0; index < levels.length; index++) {
+          Namespace namespace = Namespace.of(Arrays.copyOfRange(levels, 0, index + 1));
+          if (!((SupportsNamespaces) targetCatalog()).namespaceExists(namespace)) {
+            ((SupportsNamespaces) targetCatalog()).createNamespace(namespace);
+          }
+        }
       }
       // register the table to the target catalog
       TableOperations ops = ((BaseTable) sourceCatalog().loadTable(tableIdentifier)).operations();
