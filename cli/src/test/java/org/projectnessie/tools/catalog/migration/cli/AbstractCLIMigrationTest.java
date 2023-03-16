@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catlog.migration.cli;
+package org.projectnessie.tools.catalog.migration.cli;
 
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -42,7 +42,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
-import org.projectnessie.tools.catalog.migration.cli.CatalogUtil;
 
 public abstract class AbstractCLIMigrationTest extends AbstractTest {
 

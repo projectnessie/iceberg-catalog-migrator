@@ -13,25 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catlog.migration.cli;
+package org.projectnessie.tools.catalog.migration.cli;
 
 import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.DRY_RUN_FILE;
 import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.FAILED_IDENTIFIERS_FILE;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
+import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
-public class HadoopCLIMigrationTest extends AbstractCLIMigrationTest {
+public class ITHiveToHadoopCLIMigrationTest extends AbstractCLIMigrationTest {
 
   @BeforeAll
-  protected static void setup() {
+  protected static void setup() throws Exception {
+    HiveMetaStoreRunner.startMetastore();
     dryRunFile = outputDir.resolve(DRY_RUN_FILE);
     failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
-    sourceCatalogProperties = "warehouse=" + warehouse1.toAbsolutePath() + ",type=hadoop";
+    sourceCatalogProperties =
+        "warehouse="
+            + warehouse1.toAbsolutePath()
+            + ",uri="
+            + HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris");
     targetCatalogProperties = "warehouse=" + warehouse2.toAbsolutePath() + ",type=hadoop";
 
-    catalog1 = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "catalog1");
-    catalog2 = createHadoopCatalog(warehouse2.toAbsolutePath().toString(), "catalog2");
+    catalog1 = HiveMetaStoreRunner.hiveCatalog();
+    catalog2 = createHadoopCatalog(warehouse2.toAbsolutePath().toString(), "hadoop");
 
     sourceCatalogType = catalogType(catalog1);
     targetCatalogType = catalogType(catalog2);
@@ -40,7 +47,15 @@ public class HadoopCLIMigrationTest extends AbstractCLIMigrationTest {
   }
 
   @AfterAll
-  protected static void tearDown() {
+  protected static void tearDown() throws Exception {
     dropNamespaces();
+    HiveMetaStoreRunner.stopMetastore();
+  }
+
+  // disable large table test for IT to save CI time. It will be executed only for UT.
+  @Override
+  @Disabled
+  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
+    super.testRegisterLargeNumberOfTables(deleteSourceTables);
   }
 }

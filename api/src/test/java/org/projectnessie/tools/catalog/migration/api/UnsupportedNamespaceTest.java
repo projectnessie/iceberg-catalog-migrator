@@ -16,6 +16,7 @@
 package org.projectnessie.tools.catalog.migration.api;
 
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 import org.apache.iceberg.BaseMetastoreCatalog;
 import org.apache.iceberg.TableOperations;
@@ -79,5 +80,10 @@ public class UnsupportedNamespaceTest {
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining(
             "source catalog TestCatalog{} doesn't implement SupportsNamespaces to list all namespaces.");
+
+    Assertions.assertThatThrownBy(() -> catalogMigrator.registerTables(Collections.emptyList()))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining(
+            "target catalog TestCatalog{} doesn't implement SupportsNamespaces to create missing namespaces.");
   }
 }

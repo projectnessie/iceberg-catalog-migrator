@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catlog.migration.cli;
+package org.projectnessie.tools.catalog.migration.cli;
 
 import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.DRY_RUN_FILE;
 import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.FAILED_IDENTIFIERS_FILE;
@@ -23,25 +23,21 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
-public class ITNessieToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
-
-  protected static final int NESSIE_PORT = Integer.getInteger("quarkus.http.test-port", 19121);
-
-  protected static String nessieUri = String.format("http://localhost:%d/api/v1", NESSIE_PORT);
+public class ITHadoopToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
 
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
     dryRunFile = outputDir.resolve(DRY_RUN_FILE);
     failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
-    sourceCatalogProperties = "uri=" + nessieUri + ",ref=main,warehouse=" + warehouse1;
+    sourceCatalogProperties = "warehouse=" + warehouse1.toAbsolutePath() + ",type=hadoop";
     targetCatalogProperties =
         "warehouse="
-            + warehouse2
+            + warehouse2.toAbsolutePath()
             + ",uri="
             + HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris");
 
-    catalog1 = createNessieCatalog(warehouse1.toAbsolutePath().toString(), nessieUri);
+    catalog1 = createHadoopCatalog(warehouse1.toString(), "catalog1");
     catalog2 = HiveMetaStoreRunner.hiveCatalog();
 
     sourceCatalogType = catalogType(catalog1);

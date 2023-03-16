@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catlog.migration.cli;
+package org.projectnessie.tools.catalog.migration.cli;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.List;
 import nl.altindag.log.LogCaptor;
-import org.projectnessie.tools.catalog.migration.cli.CatalogMigrationCLI;
 import picocli.CommandLine;
 
 /** Helper class for tests. */

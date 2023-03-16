@@ -17,8 +17,10 @@ package org.projectnessie.tools.catalog.migration.api;
 
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -28,6 +30,7 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
@@ -48,6 +51,8 @@ public abstract class CatalogMigrator {
   private static final Logger LOG = LoggerFactory.getLogger(CatalogMigrator.class);
   private final ImmutableCatalogMigrationResult.Builder resultBuilder =
       ImmutableCatalogMigrationResult.builder();
+
+  private static final Set<String> processedNamespaces = new HashSet<>();
 
   /**
    * Get the table identifiers which matches the regular expression pattern input from all the
@@ -101,6 +106,12 @@ public abstract class CatalogMigrator {
     Preconditions.checkArgument(identifiers != null, "Identifiers list is null");
     Preconditions.checkArgument(
         !targetCatalog().equals(sourceCatalog()), "target catalog is same as source catalog");
+    if (!(targetCatalog() instanceof SupportsNamespaces)) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "target catalog %s doesn't implement SupportsNamespaces to create missing namespaces.",
+              targetCatalog().name()));
+    }
 
     if (identifiers.isEmpty()) {
       LOG.info("Identifiers list is empty");
@@ -136,20 +147,13 @@ public abstract class CatalogMigrator {
   }
 
   public CatalogMigrationResult result() {
+    processedNamespaces.clear();
     return resultBuilder.build();
   }
 
   private boolean registerTable(TableIdentifier tableIdentifier) {
     try {
-      if (!((SupportsNamespaces) targetCatalog()).namespaceExists(tableIdentifier.namespace())) {
-        String[] levels = tableIdentifier.namespace().levels();
-        for (int index = 0; index < levels.length; index++) {
-          Namespace namespace = Namespace.of(Arrays.copyOfRange(levels, 0, index + 1));
-          if (!((SupportsNamespaces) targetCatalog()).namespaceExists(namespace)) {
-            ((SupportsNamespaces) targetCatalog()).createNamespace(namespace);
-          }
-        }
-      }
+      createNamespacesIfNotExist(tableIdentifier.namespace());
       // register the table to the target catalog
       TableOperations ops = ((BaseTable) sourceCatalog().loadTable(tableIdentifier)).operations();
       targetCatalog().registerTable(tableIdentifier, ops.current().metadataFileLocation());
@@ -158,6 +162,24 @@ public abstract class CatalogMigrator {
     } catch (Exception ex) {
       LOG.warn("Unable to register the table {}", tableIdentifier, ex);
       return false;
+    }
+  }
+
+  private void createNamespacesIfNotExist(Namespace identifierNamespace) {
+    if (!processedNamespaces.contains(identifierNamespace.toString())) {
+      String[] levels = identifierNamespace.levels();
+      for (int index = 0; index < levels.length; index++) {
+        Namespace namespace = Namespace.of(Arrays.copyOfRange(levels, 0, index + 1));
+        if (!processedNamespaces.contains(namespace.toString())) {
+          try {
+            ((SupportsNamespaces) targetCatalog()).createNamespace(namespace);
+          } catch (AlreadyExistsException ex) {
+            // ignore the error as forcefully creating the namespace even if it exists to avoid
+            // namespaceExists() check.
+          }
+          processedNamespaces.add(namespace.toString());
+        }
+      }
     }
   }
 }

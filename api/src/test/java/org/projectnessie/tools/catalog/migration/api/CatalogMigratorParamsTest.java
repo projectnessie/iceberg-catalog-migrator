@@ -54,6 +54,17 @@ public class CatalogMigratorParamsTest {
             () ->
                 ImmutableCatalogMigrator.builder()
                     .sourceCatalog(catalog1)
+                    .targetCatalog(catalog2)
+                    .deleteEntriesFromSourceCatalog(true)
+                    .build()
+                    .registerTables(null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Identifiers list is null");
+
+    Assertions.assertThatThrownBy(
+            () ->
+                ImmutableCatalogMigrator.builder()
+                    .sourceCatalog(catalog1)
                     .targetCatalog(null) // target-catalog is null
                     .deleteEntriesFromSourceCatalog(true)
                     .build())

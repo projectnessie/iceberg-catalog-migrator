@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catlog.migration.cli;
+package org.projectnessie.tools.catalog.migration.cli;
 
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
@@ -30,7 +30,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-public class CLITest {
+public class CLIOptionsTest {
 
   protected static @TempDir Path logDir;
 

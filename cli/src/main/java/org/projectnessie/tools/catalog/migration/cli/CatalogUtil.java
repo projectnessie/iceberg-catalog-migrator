@@ -15,8 +15,8 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import com.google.common.base.Preconditions;
 import java.util.Map;
-import java.util.Objects;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.aws.dynamodb.DynamoDbCatalog;
 import org.apache.iceberg.aws.glue.GlueCatalog;
@@ -49,22 +49,25 @@ public final class CatalogUtil {
       CatalogType catalogType,
       String customCatalogImpl,
       Map<String, String> hadoopConf) {
-    Configuration sourceCatalogConf = new Configuration();
-    hadoopConf.forEach(sourceCatalogConf::set);
+    Preconditions.checkArgument(catalogProperties != null, "catalog properties is null");
+    Preconditions.checkArgument(catalogType != null, "catalog type is null");
+    Configuration catalogConf = new Configuration();
+    if (hadoopConf != null) {
+      hadoopConf.forEach(catalogConf::set);
+    }
     return org.apache.iceberg.CatalogUtil.loadCatalog(
-        Objects.requireNonNull(catalogImpl(catalogType, customCatalogImpl)),
+        catalogImpl(catalogType, customCatalogImpl),
         catalogType.name(),
         catalogProperties,
-        sourceCatalogConf);
+        catalogConf);
   }
 
   private static String catalogImpl(CatalogType type, String customCatalogImpl) {
     switch (type) {
       case CUSTOM:
-        if (customCatalogImpl == null || customCatalogImpl.isEmpty()) {
-          throw new IllegalArgumentException(
-              "Need to specify the fully qualified class name of the custom catalog " + "impl");
-        }
+        Preconditions.checkArgument(
+            customCatalogImpl != null && !customCatalogImpl.trim().isEmpty(),
+            "Need to specify the fully qualified class name of the custom catalog impl");
         return customCatalogImpl;
       case DYNAMODB:
         return DynamoDbCatalog.class.getName();
