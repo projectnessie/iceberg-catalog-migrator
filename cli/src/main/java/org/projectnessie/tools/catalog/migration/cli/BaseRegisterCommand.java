@@ -56,8 +56,8 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
       defaultValue = "",
       description = {
         "Optional local output directory path to write CLI output files like `failed_identifiers.txt`, "
-            + "`failed_to_delete_at_source.txt`, `dry_run_identifiers.txt`. If not specified, uses present working "
-            + "directory.",
+            + "`failed_to_delete_at_source.txt`, `dry_run_identifiers.txt`. "
+            + "If not specified, uses the present working directory.",
         "Example: --output-dir /tmp/output/",
         "         --output-dir $PWD/output_folder"
       })
@@ -79,7 +79,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
       names = {"--stacktrace"},
       description =
           "Optional configuration to enable capturing stacktrace in logs in case of failures.")
-  boolean enableStackTrace;
+  protected boolean enableStackTrace;
 
   private static final int BATCH_SIZE = 100;
   public static final String FAILED_IDENTIFIERS_FILE = "failed_identifiers.txt";
@@ -137,15 +137,22 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
             "User has not specified the table identifiers."
                 + " Selecting all the tables from all the namespaces from the source catalog.");
       }
-      identifiers = catalogMigrator.getMatchingTableIdentifiers(identifierRegEx);
-    }
 
-    consoleLog.info("Identified {} tables for {}.", identifiers.size(), operation());
+      identifiers = catalogMigrator.getMatchingTableIdentifiers(identifierRegEx);
+      if (identifiers.isEmpty()) {
+        consoleLog.info(
+            "No tables are identified for {}. Please check `catalog_migration.log` file for more info.",
+            operation());
+        return 0;
+      }
+    }
 
     if (isDryRun) {
       handleDryRunResult(identifiers);
       return 0;
     }
+
+    consoleLog.info("Identified {} tables for {}.", identifiers.size(), operation());
 
     consoleLog.info("Started {} ...", operation());
 
@@ -172,7 +179,6 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     writeToFile(
         outputDirPath.resolve(FAILED_TO_DELETE_AT_SOURCE_FILE),
         result.failedToDeleteTableIdentifiers());
-
     consoleLog.info("Finished {} ...", operation());
     printSummary(result);
     printDetails(result);
@@ -210,7 +216,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
       consoleLog.info(
           "Failed to delete {} tables from {} catalog. "
-              + "Please check the `catalog_migration.log` file for the reason. "
+              + "Please check the `catalog_migration.log` file for the failure reason. "
               + "{}Failed to delete identifiers are written into `{}`.",
           result.failedToDeleteTableIdentifiers().size(),
           sourceCatalogOptions.type.name(),
@@ -247,18 +253,12 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
   private void printDryRunResult(List<TableIdentifier> result) {
     consoleLog.info("Summary: ");
-    if (result.isEmpty()) {
-      consoleLog.info(
-          "No tables are identified for {}. Please check logs for more info.", operation());
-      return;
-    }
     consoleLog.info(
         "Identified {} tables for {} by dry-run. These identifiers are also written into {}. "
-            + "You can use this file with `--identifiers-from-file` option.",
+            + "This file can be used with `--identifiers-from-file` option for an actual run.",
         result.size(),
         operation(),
         DRY_RUN_FILE);
-
     consoleLog.info(
         "Details: {}Identified these tables for {} by dry-run:{}{}",
         System.lineSeparator(),
@@ -268,6 +268,9 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
   }
 
   private static void writeToFile(Path filePath, List<TableIdentifier> identifiers) {
+    if (identifiers.isEmpty()) {
+      return;
+    }
     List<String> identifiersString =
         identifiers.stream().map(TableIdentifier::toString).collect(Collectors.toList());
     try {

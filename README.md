@@ -1,12 +1,12 @@
 # Objective 
-Introduce a CLI tool to bulk migrate Iceberg tables from one catalog to another without a data copy.
+Introduce a command-line tool that enables bulk migration of Iceberg tables from one catalog to another without the need to copy the data.
 
-Users may want to move away from one catalog and use the other catalog with their existing Iceberg tables for the following reasons:
+There are various reasons why users may want to move their Iceberg tables to a different catalog. For instance,
 * They were using hadoop catalog and later realized that it is not production recommended. So, they want to move tables to other production ready catalogs.
 * They just heard about the awesome Arctic catalog (or Nessie) and want to move their existing iceberg tables to Dremio Arctic.
 * They had an on-premise Hive catalog, but want to move tables to a cloud-based catalog as part of their cloud migration strategy.
 
-Before the `1.1.0` Iceberg release, the only way to achieve this was **by copying the data** using `insert into catalog1.db.tableName as select * from catalog2.db.tableName`.
+Previously, before the Iceberg `1.1.0` release, the only way to migrate tables was by copying the data using the command `insert into catalog1.db.tableName as select * from catalog2.db.tableName`.
 After the iceberg `1.1.0` release, all Iceberg Catalogs supports register table with the `catalog#registerTable()` API.
 However, custom code is needed to migrate all the tables in bulk. 
 **Hence, we introduce a CLI tool to migrate Iceberg tables in bulk from one Iceberg Catalog to another without a data copy.**
@@ -156,8 +156,7 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 
 # Scenarios
 ## A. User need to try out new catalog
-They can use a new catalog with a fresh table to explore the capabilities of the new catalog. 
-No need for a catalog migration tool.
+Users can use a new catalog by creating a fresh table to test the new catalog's capabilities, without requiring a tool to migrate the catalog.
 
 ## B. Users need to move away from one catalog (example: Hadoop) to another (example: Nessie) with all the tables.
 
@@ -173,9 +172,9 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar register \
 --dry-run
 ```
 
-All the inputs will be validated and a list of identified table identifiers for migration will be printed on the console
-along with the total count. Output will be written to _dry_run.txt_ file. 
-which can be used for actual migration using the `--identifiers-from-file` option without listing tables again from the catalog.
+After validating all inputs, the console will display a list of table identifiers that have been identified for migration along with the total count. 
+This information will also be written to a file called `dry_run.txt`, 
+which can be used for actual migration using the `--identifiers-from-file` option, thus eliminating the need to list tables from the catalog again.
 
 ### B.2) executes the migration of all 1000 tables and all the tables are successfully migrated.
 
@@ -188,8 +187,7 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse
 ```
 
-Once the input validations are done, users will be prompted with this message.
-They have an ability to abort or continue the operation.
+After input validation, users will receive a prompt message with the option to either abort or continue the operation.
 
 ```
 Configured source catalog: HADOOP
@@ -198,15 +196,15 @@ Configured target catalog: NESSIE
 
 [WARNING]
 a) Executing catalog migration when the source catalog has some in-progress commits
-can lead to a data loss as the in-progress commit will not be considered for migration.
-So, while using this tool please make sure there are no in-progress commits for the source catalog
+can lead to a data loss as the in-progress commits will not be considered for migration.
+So, while using this tool please make sure there are no in-progress commits for the source catalog.
 
 b) After the migration, successfully migrated tables will be deleted from the source catalog 
 and can only be accessed from the target catalog.
-Have you read the above warnings and are you sure you want to continue? (yes/no):
+Are you certain that you wish to proceed, after reading the above warnings? (yes/no):
 ```
 
-Once the user wants to continue, other information will be printed on the console.
+If the user chooses to continue, additional information will be displayed on the console.
 
 ```
 Continuing...
@@ -236,8 +234,8 @@ Details:
   [foo.tbl-1, foo.tbl-2, bar.tbl-4, bar.tbl-3, …, …,bar.tbl-1000]
 ```
 
-Note: a log file will also be generated which prints “successfully migrated table X” on every table migration. It also captures table level failures if there are any.
-
+Please note that a log file will be created, which will print "successfully migrated table X" for every table migration, 
+and also log any table level failures, if present.
 
 ### B.3) executes the migration and out of 1000 tables 10 tables have failed to migrate because the target catalog had the same table and namespace (maybe different schema).Remaining 990 tables were successfully migrated.
 
@@ -247,7 +245,8 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
---target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse
+--target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
+--stacktrace
 ```
 
 Console output will be same as B.2) till summary because even in case of failure,
@@ -266,11 +265,9 @@ Details:
   [bar.tbl-201, foo.tbl-202, …, …,bar.tbl-210]
 ```
 
-Note:
-A log file will also be generated which prints “successfully migrated table X” on every table migration. It also captures table level failures if there are any.
-So from the details or from _failed_identifiers.txt_ file, users can get the failed table names and search in the log. 
-It will have a 10 stacktrace with `TableAlreadyExists` exception for 10 tables. Which gives an idea for the user about why it failed.
-Users can rename the tables in the source catalog and migrate only these 10 tables by using any one of the identifier options in the argument.
+Please note that a log file will be generated, which will print "successfully migrated table X" for every table migration and log any table-level failures in the `failed_identifiers.txt` file.
+Users can use this file to identify failed tables and search for them in the log, which will contain a stacktrace with the `TableAlreadyExists` exception for up to 10 tables. 
+This can help users understand why the migration failed. In such cases, users can rename the tables in the source catalog and migrate only those 10 tables using any of the identifier options available in the argument.
 
 
 ### B.4) executes the migration and out of 1000 tables 900 tables have failed to migrate because the target/source catalog connection went off. Only 100 tables were successfully migrated.
@@ -281,7 +278,8 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
---target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse
+--target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
+--stacktrace
 ```
 
 Console output will be same as B.2) till summary because even in case of failure,
@@ -300,11 +298,9 @@ Details:
   [bar.tbl-201, foo.tbl-202, …, …,bar.tbl-1000]
 ```
 
-Note:
-A log file will also be generated which prints “successfully migrated table X” on every table migration. It also captures table level failures if there are any.
-So from the details or from _failed_identifiers.txt_ file, users can get the failed table names and search in the log.
-It will have a 900 stack trace with `ConnectionTimeOut` exception for 900 tables. Which gives an idea for the user about why it failed.
-As these were timeout exceptions, users can retry migration of only these 900 tables using the `--identifiers-from-file` option with _failed_identifiers.txt_.
+Please note that a log file will be generated, which will print "successfully migrated table X" for every table migration and log any table-level failures in the `failed_identifiers.txt` file. 
+Users can use this file to identify failed tables and search for them in the log, which may contain a stacktrace with the `ConnectionTimeOut` exception for up to 900 tables. 
+This can help users understand why the migration failed. Since these are timeout exceptions, users can retry migrating only those 900 tables using the `--identifiers-from-file` option with the `failed_identifiers.txt` file.
 
 ### B.5)  executes the migration and out of 1000 tables. Where all the 1000 tables were migrated successfully but deletion of 200 tables from the source catalog has failed due to network issues.
 
@@ -317,9 +313,9 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse
 ```
 
-Console output will be same as B.2) till summary because even in case of failure,
-all the identified tables will be attempted for migration. 
-These failed to delete tables are stored in _failed_to_delete.txt_ and the user has to delete them manually or stop using them from the source catalog. (console will print this warning)
+The console output will be the same as in B.2) until the summary because, even in case of failure, all the identified tables will be attempted for migration. 
+However, any tables that fail to delete will be stored in the `failed_to_delete.txt` file, and the user will have to delete them manually or stop using them from the source catalog. 
+The console will print this warning.
 
 ```
 Summary:
@@ -338,11 +334,9 @@ Users should manually drop the table entry from the source catalog in this case 
 
 ### B.6)  executes the migration and out of 1000 tables. But manually aborts the migration by killing the process.
 
-User has to go through the log to figure out how many tables have migrated so far. 
-Users can also do `listTables()` at the target catalog to see how many tables migrated. 
-There can be a chance that tables that are migrated to the target catalog may not be cleaned in the source catalog due to abort. 
-Users should not operate them from source catalog and can manually drop them from source catalog. 
-Users can also try bulk migration again, which will attempt to migrate all the tables in the source catalog.
+To determine the number of migrated tables, the user can either review the log or use the listTables() function in the target catalog. 
+In the event of an abort, migrated tables may not be deleted from the source catalog, and users should avoid manipulating them from there. 
+If necessary, users can manually remove these tables from the source catalog or attempt a bulk migration to transfer all tables from the source catalog.
 
 ### B.7) Users need to move away from one catalog to another with selective tables (maybe want to move only the production tables, test tables, etc)
 

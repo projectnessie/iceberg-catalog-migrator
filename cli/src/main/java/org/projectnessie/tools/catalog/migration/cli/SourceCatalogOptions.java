@@ -42,7 +42,7 @@ public class SourceCatalogOptions {
         "Example: --source-catalog-properties warehouse=/tmp/warehouseHadoop,type=hadoop",
         "         --source-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie"
       })
-  protected Map<String, String> properties;
+  private Map<String, String> properties;
 
   @CommandLine.Option(
       names = "--source-catalog-hadoop-conf",

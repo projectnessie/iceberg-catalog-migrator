@@ -16,6 +16,7 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ public class IdentifierOptions {
             + "use the `--identifiers-from-file` or `--identifiers-regex` option.",
         "Example: --identifiers foo.t1,bar.t2"
       })
-  private List<String> identifiers = new ArrayList<>();
+  protected List<String> identifiers = new ArrayList<>();
 
   @CommandLine.Option(
       names = {"--identifiers-from-file"},
@@ -47,7 +48,7 @@ public class IdentifierOptions {
             + "used with `--identifiers` or `--identifiers-regex` option.",
         "Example: --identifiers-from-file /tmp/files/ids.txt"
       })
-  private String identifiersFromFile;
+  protected String identifiersFromFile;
 
   @CommandLine.Option(
       names = {"--identifiers-regex"},
@@ -74,7 +75,8 @@ public class IdentifierOptions {
                 .map(TableIdentifier::parse)
                 .collect(Collectors.toList());
       } catch (IOException e) {
-        throw new RuntimeException("Failed to read the file:", e);
+        throw new UncheckedIOException(
+            String.format("Failed to read the file: %s", identifiersFromFile), e);
       }
     } else if (!identifiers.isEmpty()) {
       tableIdentifiers =

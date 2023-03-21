@@ -42,10 +42,10 @@ public abstract class CatalogMigrator {
   /** Source {@link Catalog} from which the tables are chosen. */
   public abstract Catalog sourceCatalog();
 
-  /** Target {@link Catalog} to which the tables need to be migrated. */
+  /** Target {@link Catalog} to which the tables need to be registered or migrated. */
   public abstract Catalog targetCatalog();
 
-  /** Delete the table entries from source catalog after successful migration. */
+  /** Delete the table entries from the source catalog after successful registration. */
   public abstract boolean deleteEntriesFromSourceCatalog();
 
   /** Enable the stacktrace in logs in case of failures. */
@@ -57,7 +57,6 @@ public abstract class CatalogMigrator {
   private static final Logger LOG = LoggerFactory.getLogger(CatalogMigrator.class);
   private final ImmutableCatalogMigrationResult.Builder resultBuilder =
       ImmutableCatalogMigrationResult.builder();
-
   private final Set<Namespace> processedNamespaces = new HashSet<>();
 
   /**
@@ -120,7 +119,7 @@ public abstract class CatalogMigrator {
     }
 
     if (identifiers.isEmpty()) {
-      LOG.info("Identifiers list is empty");
+      LOG.warn("Identifiers list is empty");
       return this;
     }
 
@@ -170,7 +169,7 @@ public abstract class CatalogMigrator {
       // register the table to the target catalog
       TableOperations ops = ((BaseTable) sourceCatalog().loadTable(tableIdentifier)).operations();
       targetCatalog().registerTable(tableIdentifier, ops.current().metadataFileLocation());
-      LOG.info("Successfully migrated the table {}", tableIdentifier);
+      LOG.info("Successfully registered the table {}", tableIdentifier);
       return true;
     } catch (Exception ex) {
       if (enableStacktrace()) {

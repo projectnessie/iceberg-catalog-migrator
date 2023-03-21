@@ -30,9 +30,9 @@ public final class PromptUtil {
     consoleLog.warn(
         "{}"
             + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-            + "{}\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
+            + "{}\tcan lead to a data loss as the in-progress commits will not be considered for migration. "
             + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
-            + "catalog{}"
+            + "catalog.{}"
             + "{}"
             + "\tb) After the registration, successfully registered tables will be present in both source and target "
             + "catalog. "
@@ -54,9 +54,9 @@ public final class PromptUtil {
     consoleLog.warn(
         "{}"
             + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
-            + "{}\tcan lead to a data loss as the in-progress commit will not be considered for migration. "
+            + "{}\tcan lead to a data loss as the in-progress commits will not be considered for migration. "
             + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
-            + "catalog{}"
+            + "catalog.{}"
             + "{}"
             + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
             + "{}\tand can only be accessed from the target catalog.",
@@ -73,7 +73,7 @@ public final class PromptUtil {
     Console console = System.console();
     while (true) {
       consoleLog.info(
-          "Have you read the above warnings and are you sure you want to continue? (yes/no):");
+          "Are you certain that you wish to proceed, after reading the above warnings? (yes/no):");
       String input = console.readLine();
 
       if (input.equalsIgnoreCase("yes")) {

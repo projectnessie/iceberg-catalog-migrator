@@ -33,8 +33,10 @@ dependencies {
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
+  testImplementation(libs.junit.vintage.engine)
   testImplementation(libs.assertj)
   testImplementation(libs.hadoop.common)
+  testImplementation(libs.logcaptor)
 
   testImplementation(project(":iceberg-catalog-migrator-api-test"))
 

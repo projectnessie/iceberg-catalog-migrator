@@ -8,14 +8,14 @@ googleJavaFormat = "1.16.0"
 guava = "31.1-jre"
 hadoop = "3.2.4"
 hive = "2.3.8" # this is in mapping with iceberg repo. Later versions have junit depedency problem
-iceberg = "1.1.0"
+iceberg = "1.2.0"
 immutables = "2.9.3"
 jacoco = "0.8.8"
 jandex = "3.0.5"
 junit = "5.9.2"
 logback = "1.4.5"
 logcaptor = "2.8.0"
-nessie = "0.51.1"
+nessie = "0.52.3"
 nessieBuildPlugins = "0.2.19"
 nessieRunner = "0.29.0"
 picocli = "4.7.1"
@@ -50,6 +50,7 @@ junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
 junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
 junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
+junit-vintage-engine = { module = "org.junit.vintage:junit-vintage-engine" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logcaptor = { module = "io.github.hakky54:logcaptor", version.ref = "logcaptor" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }

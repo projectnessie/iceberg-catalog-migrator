@@ -19,8 +19,11 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
+import nl.altindag.log.LogCaptor;
+import nl.altindag.log.model.LogEvent;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +31,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
 
@@ -174,7 +178,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
       catalog1.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
     }
 
-    // register all the tables from source catalog again
+    // register all the tables from source catalog again. So that `foo.tbl2` will fail to register.
     result = registerAllTables(deleteSourceTables);
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsExactlyInAnyOrder(
@@ -244,6 +248,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
   public void testListingTableIdentifiers(boolean deleteSourceTables) {
     CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
 
+    // should list all the tables from all the namespace when regex is null.
     List<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
     Assertions.assertThat(matchingTableIdentifiers)
@@ -253,10 +258,15 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
             TableIdentifier.parse("bar.tbl3"),
             TableIdentifier.parse("bar.tbl4"));
 
+    // list the tables whose identifier starts with "foo."
     matchingTableIdentifiers = catalogMigrator.getMatchingTableIdentifiers("^foo\\..*");
     Assertions.assertThat(matchingTableIdentifiers)
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
+
+    // test filter that doesn't match any table.
+    matchingTableIdentifiers = catalogMigrator.getMatchingTableIdentifiers("^dev\\..*");
+    Assertions.assertThat(matchingTableIdentifiers).isEmpty();
   }
 
   @Order(7)
@@ -278,6 +288,45 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
     Assertions.assertThat(catalog2.listTables(Namespace.of("db1")))
         .containsExactly(TableIdentifier.parse("db1.tbl5"));
+  }
+
+  @Order(7)
+  @ParameterizedTest
+  @CsvSource(value = {"false,false", "false,true", "true,false", "true,true"})
+  public void testStacktrace(boolean deleteSourceTables, boolean enableStacktrace) {
+    ImmutableCatalogMigrator migrator =
+        ImmutableCatalogMigrator.builder()
+            .sourceCatalog(catalog1)
+            .targetCatalog(catalog2)
+            .deleteEntriesFromSourceCatalog(deleteSourceTables)
+            .enableStacktrace(enableStacktrace)
+            .build();
+    try (LogCaptor logCaptor = LogCaptor.forClass(CatalogMigrator.class)) {
+      CatalogMigrationResult result =
+          migrator
+              .registerTables(Collections.singletonList(TableIdentifier.parse("db.dummy_table")))
+              .result();
+      Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
+      Assertions.assertThat(result.failedToRegisterTableIdentifiers())
+          .containsExactly(TableIdentifier.parse("db.dummy_table"));
+      Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
+
+      Assertions.assertThat(logCaptor.getLogEvents()).hasSize(1);
+      LogEvent logEvent = logCaptor.getLogEvents().get(0);
+      if (enableStacktrace) {
+        Assertions.assertThat(logEvent.getFormattedMessage())
+            .isEqualTo("Unable to register the table db.dummy_table");
+        Assertions.assertThat(logEvent.getThrowable())
+            .isPresent()
+            .get()
+            .isInstanceOf(NoSuchTableException.class);
+      } else {
+        Assertions.assertThat(logEvent.getFormattedMessage())
+            .isEqualTo(
+                "Unable to register the table db.dummy_table : Table does not exist: db.dummy_table");
+        Assertions.assertThat(logEvent.getThrowable()).isEmpty();
+      }
+    }
   }
 
   protected CatalogMigrator catalogMigratorWithDefaultArgs(boolean deleteSourceTables) {

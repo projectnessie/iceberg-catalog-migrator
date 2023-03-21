@@ -42,7 +42,7 @@ public class TargetCatalogOptions {
         "Example: --target-catalog-properties warehouse=/tmp/warehouseHadoop,type=hadoop",
         "         --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie"
       })
-  protected Map<String, String> properties;
+  private Map<String, String> properties;
 
   @CommandLine.Option(
       names = "--target-catalog-hadoop-conf",

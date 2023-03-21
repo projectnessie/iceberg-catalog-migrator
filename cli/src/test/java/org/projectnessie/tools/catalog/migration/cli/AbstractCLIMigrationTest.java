@@ -23,12 +23,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.IntStream;
+import nl.altindag.log.LogCaptor;
+import nl.altindag.log.model.LogEvent;
 import org.apache.iceberg.aws.dynamodb.DynamoDbCatalog;
 import org.apache.iceberg.aws.glue.GlueCatalog;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.dell.ecs.EcsCatalog;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.jdbc.JdbcCatalog;
@@ -40,7 +43,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
 import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
 
 public abstract class AbstractCLIMigrationTest extends AbstractTest {
@@ -108,6 +113,24 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
     Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+
+    // manually refreshing catalog due to missing refresh in Nessie catalog
+    // https://github.com/apache/iceberg/pull/6789
+    catalog1.tableExists(TableIdentifier.parse("foo.tbl1"));
+
+    if (deleteSourceTables && !(catalog1 instanceof HadoopCatalog)) {
+      // table should be deleted after migration from source catalog
+      Assertions.assertThat(catalog1.listTables(Namespace.of("foo"))).isEmpty();
+      Assertions.assertThat(catalog1.listTables(Namespace.of("bar"))).isEmpty();
+      return;
+    }
+    // tables should be present in source catalog.
+    Assertions.assertThat(catalog1.listTables(Namespace.of("foo")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
+    Assertions.assertThat(catalog1.listTables(Namespace.of("bar")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
@@ -206,7 +229,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl4"), TableIdentifier.parse("bar.tbl3"));
 
-    // using --identifiers-regex option which matches all the tables starts with "foo."
+    // using `--identifiers-regex` option which matches all the tables starts with "foo."
     run =
         runCLI(
             deleteSourceTables,
@@ -373,7 +396,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
       catalog1.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
     }
 
-    // register all the tables from source catalog again
+    // register all the tables from source catalog again. So that registering `foo.tbl2` will fail.
     run =
         runCLI(
             deleteSourceTables,
@@ -426,7 +449,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
 
-    // retry the failed tables using --identifiers-from-file
+    // retry the failed tables using `--identifiers-from-file`
     run =
         runCLI(
             deleteSourceTables,
@@ -482,7 +505,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 0 tables for %s.", operation));
+        .contains(
+            String.format(
+                "No tables are identified for %s. Please check `catalog_migration.log` file for more info.",
+                operation));
   }
 
   @Order(5)
@@ -509,7 +535,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     // should not prompt for dry run
     Assertions.assertThat(run.getOut())
         .doesNotContain(
-            "Have you read the above warnings and are you sure you want to continue? (yes/no):");
+            "Are you certain that you wish to proceed, after reading the above warnings? (yes/no):");
     Assertions.assertThat(run.getOut()).contains("Dry run is completed.");
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -518,7 +544,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                 "Summary: %n"
                     + "Identified 4 tables for %s by dry-run. "
                     + "These identifiers are also written into dry_run_identifiers.txt. "
-                    + "You can use this file with `--identifiers-from-file` option.",
+                    + "This file can be used with `--identifiers-from-file` option for an actual run.",
                 operation));
     Assertions.assertThat(run.getOut())
         .contains(
@@ -565,6 +591,47 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+  }
+
+  @Order(7)
+  @ParameterizedTest
+  @CsvSource(value = {"false,false", "false,true", "true,false", "true,true"})
+  public void testStacktrace(boolean deleteSourceTables, boolean enableStacktrace)
+      throws Exception {
+    try (LogCaptor logCaptor = LogCaptor.forClass(CatalogMigrator.class)) {
+      runCLI(
+          deleteSourceTables,
+          "--source-catalog-type",
+          sourceCatalogType,
+          "--source-catalog-properties",
+          sourceCatalogProperties,
+          "--target-catalog-type",
+          targetCatalogType,
+          "--target-catalog-properties",
+          targetCatalogProperties,
+          "--identifiers",
+          "db.dummy_table",
+          "--output-dir",
+          outputDir.toAbsolutePath().toString(),
+          "--disable-safety-prompts",
+          "--stacktrace=" + enableStacktrace);
+
+      Assertions.assertThat(logCaptor.getLogEvents()).hasSize(1);
+      LogEvent logEvent = logCaptor.getLogEvents().get(0);
+      if (enableStacktrace) {
+        Assertions.assertThat(logEvent.getFormattedMessage())
+            .isEqualTo("Unable to register the table db.dummy_table");
+        Assertions.assertThat(logEvent.getThrowable())
+            .isPresent()
+            .get()
+            .isInstanceOf(NoSuchTableException.class);
+      } else {
+        Assertions.assertThat(logEvent.getFormattedMessage())
+            .isEqualTo(
+                "Unable to register the table db.dummy_table : Table does not exist: db.dummy_table");
+        Assertions.assertThat(logEvent.getThrowable()).isEmpty();
+      }
+    }
   }
 
   private static String[] registerAllTablesArgs() {
