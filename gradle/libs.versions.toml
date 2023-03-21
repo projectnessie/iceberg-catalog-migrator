@@ -33,6 +33,7 @@ checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checks
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 errorprone-slf4j = { module = "jp.skypencil.errorprone.slf4j:errorprone-slf4j", version.ref = "errorproneSlf4j" }
+findbugs-annotations = { module = "com.google.code.findbugs:annotations", version = "3.0.1" }
 findbugs-jsr305 = { module = "com.google.code.findbugs:jsr305", version = "3.0.2" }
 google-java-format = { module = "com.google.googlejavaformat:google-java-format", version.ref = "googleJavaFormat" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }

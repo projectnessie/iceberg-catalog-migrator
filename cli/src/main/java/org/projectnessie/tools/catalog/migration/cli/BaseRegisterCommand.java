@@ -15,6 +15,7 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -38,37 +39,47 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
   @CommandLine.ArgGroup(
       exclusive = false,
       multiplicity = "1",
-      heading = "source catalog options: %n")
+      heading = "Source catalog options: %n")
   private SourceCatalogOptions sourceCatalogOptions;
 
   @CommandLine.ArgGroup(
       exclusive = false,
       multiplicity = "1",
-      heading = "target catalog options: %n")
+      heading = "Target catalog options: %n")
   private TargetCatalogOptions targetCatalogOptions;
 
-  @CommandLine.ArgGroup(heading = "identifier options: %n")
+  @CommandLine.ArgGroup(heading = "Identifier options: %n")
   private IdentifierOptions identifierOptions;
 
   @CommandLine.Option(
       names = {"--output-dir"},
-      required = true,
-      description =
-          "local output directory path to write CLI output files like `failed_identifiers.txt`, "
-              + "`failed_to_delete_at_source.txt`, `dry_run_identifiers.txt`. ")
+      defaultValue = "",
+      description = {
+        "Optional local output directory path to write CLI output files like `failed_identifiers.txt`, "
+            + "`failed_to_delete_at_source.txt`, `dry_run_identifiers.txt`. If not specified, uses present working "
+            + "directory.",
+        "Example: --output-dir /tmp/output/",
+        "         --output-dir $PWD/output_folder"
+      })
   private Path outputDirPath;
 
   @CommandLine.Option(
       names = {"--dry-run"},
       description =
-          "optional configuration to simulate the registration without actually registering. Can learn about a list "
-              + "of the tables that will be registered by running this.")
+          "Optional configuration to simulate the registration without actually registering. Can learn about a list "
+              + "of tables that will be registered by running this.")
   private boolean isDryRun;
 
   @CommandLine.Option(
-      names = {"--disable-prompts"},
-      description = "optional configuration to disable warning prompts which needs console input.")
+      names = {"--disable-safety-prompts"},
+      description = "Optional configuration to disable safety prompts which needs console input.")
   private boolean disablePrompts;
+
+  @CommandLine.Option(
+      names = {"--stacktrace"},
+      description =
+          "Optional configuration to enable capturing stacktrace in logs in case of failures.")
+  boolean enableStackTrace;
 
   private static final int BATCH_SIZE = 100;
   public static final String FAILED_IDENTIFIERS_FILE = "failed_identifiers.txt";
@@ -95,6 +106,11 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     if (identifierOptions != null) {
       identifiers = identifierOptions.processIdentifiersInput();
     }
+
+    Preconditions.checkArgument(
+        Files.exists(outputDirPath), "path specified in `--output-dir` does not exist");
+    Preconditions.checkArgument(
+        Files.isWritable(outputDirPath), "path specified in `--output-dir` is not writable");
 
     Catalog sourceCatalog = sourceCatalogOptions.build();
     consoleLog.info("Configured source catalog: {}", sourceCatalog.name());

@@ -32,24 +32,30 @@ public class IdentifierOptions {
   @CommandLine.Option(
       names = {"--identifiers"},
       split = ",",
-      description =
-          "optional selective list of identifiers to register. If not specified, all the tables will be registered. "
-              + "Use this when there are few identifiers that need to be registered. For a large number of identifiers, "
-              + "use the `--identifiers-from-file` or `--identifiers-regex` option.")
+      description = {
+        "Optional selective list of identifiers to register. If not specified, all the tables will be registered. "
+            + "Use this when there are few identifiers that need to be registered. For a large number of identifiers, "
+            + "use the `--identifiers-from-file` or `--identifiers-regex` option.",
+        "Example: --identifiers foo.t1,bar.t2"
+      })
   private List<String> identifiers = new ArrayList<>();
 
   @CommandLine.Option(
       names = {"--identifiers-from-file"},
-      description =
-          "optional text file path that contains a list of table identifiers (one per line) to register. Should not be "
-              + "used with `--identifiers` or `--identifiers-regex` option.")
+      description = {
+        "Optional text file path that contains a list of table identifiers (one per line) to register. Should not be "
+            + "used with `--identifiers` or `--identifiers-regex` option.",
+        "Example: --identifiers-from-file /tmp/files/ids.txt"
+      })
   private String identifiersFromFile;
 
   @CommandLine.Option(
       names = {"--identifiers-regex"},
-      description =
-          "optional regular expression pattern used to register only the tables whose identifiers match this pattern. "
-              + "Should not be used with `--identifiers` or '--identifiers-from-file' option.")
+      description = {
+        "Optional regular expression pattern used to register only the tables whose identifiers match this pattern. "
+            + "Should not be used with `--identifiers` or '--identifiers-from-file' option.",
+        "Example: --identifiers-regex ^foo\\..*"
+      })
   protected String identifiersRegEx;
 
   private final Logger consoleLog = LoggerFactory.getLogger("console-log");

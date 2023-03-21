@@ -38,6 +38,7 @@ public class RegisterCommand extends BaseRegisterCommand {
         .sourceCatalog(sourceCatalog)
         .targetCatalog(targetCatalog)
         .deleteEntriesFromSourceCatalog(false)
+        .enableStacktrace(enableStackTrace)
         .build();
   }
 

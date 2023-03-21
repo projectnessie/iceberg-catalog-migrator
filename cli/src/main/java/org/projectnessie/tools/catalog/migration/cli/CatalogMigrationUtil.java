@@ -28,9 +28,9 @@ import org.apache.iceberg.jdbc.JdbcCatalog;
 import org.apache.iceberg.nessie.NessieCatalog;
 import org.apache.iceberg.rest.RESTCatalog;
 
-public final class CatalogUtil {
+public final class CatalogMigrationUtil {
 
-  private CatalogUtil() {}
+  private CatalogMigrationUtil() {}
 
   public enum CatalogType {
     CUSTOM,
@@ -47,19 +47,19 @@ public final class CatalogUtil {
   static Catalog buildCatalog(
       Map<String, String> catalogProperties,
       CatalogType catalogType,
+      String catalogName,
       String customCatalogImpl,
       Map<String, String> hadoopConf) {
     Preconditions.checkArgument(catalogProperties != null, "catalog properties is null");
     Preconditions.checkArgument(catalogType != null, "catalog type is null");
+    Preconditions.checkArgument(catalogName != null, "catalog name is null");
+    Preconditions.checkArgument(!catalogName.trim().isEmpty(), "catalog name is empty");
     Configuration catalogConf = new Configuration();
     if (hadoopConf != null) {
       hadoopConf.forEach(catalogConf::set);
     }
     return org.apache.iceberg.CatalogUtil.loadCatalog(
-        catalogImpl(catalogType, customCatalogImpl),
-        catalogType.name(),
-        catalogProperties,
-        catalogConf);
+        catalogImpl(catalogType, customCatalogImpl), catalogName, catalogProperties, catalogConf);
   }
 
   private static String catalogImpl(CatalogType type, String customCatalogImpl) {

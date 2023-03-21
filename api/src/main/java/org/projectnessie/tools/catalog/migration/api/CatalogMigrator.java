@@ -48,11 +48,17 @@ public abstract class CatalogMigrator {
   /** Delete the table entries from source catalog after successful migration. */
   public abstract boolean deleteEntriesFromSourceCatalog();
 
+  /** Enable the stacktrace in logs in case of failures. */
+  @Value.Default
+  public boolean enableStacktrace() {
+    return false;
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(CatalogMigrator.class);
   private final ImmutableCatalogMigrationResult.Builder resultBuilder =
       ImmutableCatalogMigrationResult.builder();
 
-  private static final Set<String> processedNamespaces = new HashSet<>();
+  private final Set<Namespace> processedNamespaces = new HashSet<>();
 
   /**
    * Get the table identifiers which matches the regular expression pattern input from all the
@@ -140,7 +146,14 @@ public abstract class CatalogMigrator {
             }
           } catch (Exception exception) {
             resultBuilder.addFailedToDeleteTableIdentifiers(tableIdentifier);
-            LOG.warn("Failed to delete the table after migration {}", tableIdentifier, exception);
+            if (enableStacktrace()) {
+              LOG.warn("Failed to delete the table after migration {}", tableIdentifier, exception);
+            } else {
+              LOG.warn(
+                  "Failed to delete the table after migration {} : {}",
+                  tableIdentifier,
+                  exception.getMessage());
+            }
           }
         });
     return this;
@@ -160,24 +173,27 @@ public abstract class CatalogMigrator {
       LOG.info("Successfully migrated the table {}", tableIdentifier);
       return true;
     } catch (Exception ex) {
-      LOG.warn("Unable to register the table {}", tableIdentifier, ex);
+      if (enableStacktrace()) {
+        LOG.warn("Unable to register the table {}", tableIdentifier, ex);
+      } else {
+        LOG.warn("Unable to register the table {} : {}", tableIdentifier, ex.getMessage());
+      }
       return false;
     }
   }
 
   private void createNamespacesIfNotExist(Namespace identifierNamespace) {
-    if (!processedNamespaces.contains(identifierNamespace.toString())) {
+    if (!processedNamespaces.contains(identifierNamespace)) {
       String[] levels = identifierNamespace.levels();
       for (int index = 0; index < levels.length; index++) {
         Namespace namespace = Namespace.of(Arrays.copyOfRange(levels, 0, index + 1));
-        if (!processedNamespaces.contains(namespace.toString())) {
+        if (processedNamespaces.add(namespace)) {
           try {
             ((SupportsNamespaces) targetCatalog()).createNamespace(namespace);
           } catch (AlreadyExistsException ex) {
             // ignore the error as forcefully creating the namespace even if it exists to avoid
             // namespaceExists() check.
           }
-          processedNamespaces.add(namespace.toString());
         }
       }
     }

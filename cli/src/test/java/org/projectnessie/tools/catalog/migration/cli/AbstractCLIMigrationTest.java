@@ -132,7 +132,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "bar.tbl3",
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
 
     Assertions.assertThat(run.getOut())
         .doesNotContain(
@@ -177,7 +177,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             identifierFile.toAbsolutePath().toString(),
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     Files.delete(identifierFile);
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
@@ -222,7 +222,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "^foo\\..*",
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
         .contains(
@@ -272,7 +272,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "dummy.tbl3",
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -302,7 +302,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
         "foo.tbl2",
         "--output-dir",
         outputDir.toAbsolutePath().toString(),
-        "--disable-prompts");
+        "--disable-safety-prompts");
     run =
         runCLI(
             deleteSourceTables,
@@ -318,7 +318,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "foo.tbl2",
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -354,7 +354,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "foo.tbl2",
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -387,7 +387,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             targetCatalogProperties,
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
@@ -442,7 +442,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             failedIdentifiersFile.toAbsolutePath().toString(),
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
@@ -477,7 +477,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             sourceCatalogProperties,
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     String operation = deleteSourceTables ? "migration" : "registration";
@@ -503,7 +503,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             "--dry-run",
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     // should not prompt for dry run
@@ -580,7 +580,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
             targetCatalogProperties,
             "--output-dir",
             outputDir.toAbsolutePath().toString(),
-            "--disable-prompts");
+            "--disable-safety-prompts");
     return args.toArray(new String[0]);
   }
 
@@ -596,23 +596,23 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
   protected static String catalogType(Catalog catalog) {
     if (catalog instanceof DynamoDbCatalog) {
-      return CatalogUtil.CatalogType.DYNAMODB.name();
+      return CatalogMigrationUtil.CatalogType.DYNAMODB.name();
     } else if (catalog instanceof EcsCatalog) {
-      return CatalogUtil.CatalogType.ECS.name();
+      return CatalogMigrationUtil.CatalogType.ECS.name();
     } else if (catalog instanceof GlueCatalog) {
-      return CatalogUtil.CatalogType.GLUE.name();
+      return CatalogMigrationUtil.CatalogType.GLUE.name();
     } else if (catalog instanceof HadoopCatalog) {
-      return CatalogUtil.CatalogType.HADOOP.name();
+      return CatalogMigrationUtil.CatalogType.HADOOP.name();
     } else if (catalog instanceof HiveCatalog) {
-      return CatalogUtil.CatalogType.HIVE.name();
+      return CatalogMigrationUtil.CatalogType.HIVE.name();
     } else if (catalog instanceof JdbcCatalog) {
-      return CatalogUtil.CatalogType.JDBC.name();
+      return CatalogMigrationUtil.CatalogType.JDBC.name();
     } else if (catalog instanceof NessieCatalog) {
-      return CatalogUtil.CatalogType.NESSIE.name();
+      return CatalogMigrationUtil.CatalogType.NESSIE.name();
     } else if (catalog instanceof RESTCatalog) {
-      return CatalogUtil.CatalogType.REST.name();
+      return CatalogMigrationUtil.CatalogType.REST.name();
     } else {
-      return CatalogUtil.CatalogType.CUSTOM.name();
+      return CatalogMigrationUtil.CatalogType.CUSTOM.name();
     }
   }
 }

@@ -45,6 +45,7 @@ public class MigrateCommand extends BaseRegisterCommand {
         .sourceCatalog(sourceCatalog)
         .targetCatalog(targetCatalog)
         .deleteEntriesFromSourceCatalog(true)
+        .enableStacktrace(enableStackTrace)
         .build();
   }
 

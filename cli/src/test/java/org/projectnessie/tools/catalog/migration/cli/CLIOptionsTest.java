@@ -18,8 +18,11 @@ package org.projectnessie.tools.catalog.migration.cli;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.common.collect.Lists;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -42,14 +45,20 @@ public class CLIOptionsTest {
   private static Stream<Arguments> optionErrors() {
     return Stream.of(
         // no arguments
-        arguments(Lists.newArrayList(), "Missing required option: '--output-dir=<outputDirPath>'"),
+        arguments(
+            Lists.newArrayList(),
+            "Error: Missing required argument(s): (--target-catalog-type=<type> --target-catalog-properties=<String=String>[,<String=String>...] [--target-catalog-properties=<String=String>[,<String=String>...]]... [--target-catalog-hadoop-conf=<String=String>[,<String=String>...]]... [--target-custom-catalog-impl=<customCatalogImpl>])"),
+        // missing required arguments
+        arguments(Lists.newArrayList(""), "Unmatched argument at index 1: ''"),
         // missing required arguments
         arguments(
-            Lists.newArrayList(""), "Missing required option: '--output-dir=<outputDirPath>'"),
+            Lists.newArrayList(
+                "--source-catalog-properties", "properties1=ab", "--target-catalog-type", "NESSIE"),
+            "Error: Missing required argument(s): --source-catalog-type=<type>"),
         // missing required arguments
         arguments(
             Lists.newArrayList("--source-catalog-type", "GLUE"),
-            "Missing required option: '--output-dir=<outputDirPath>'"),
+            "Error: Missing required argument(s): --source-catalog-properties=<String=String>"),
         // missing required arguments
         arguments(
             Lists.newArrayList(
@@ -58,9 +67,7 @@ public class CLIOptionsTest {
                 "--source-catalog-properties",
                 "properties1=ab",
                 "--target-catalog-type",
-                "NESSIE",
-                "--output-dir",
-                "path"),
+                "NESSIE"),
             "Error: Missing required argument(s): --target-catalog-properties=<String=String>"),
         // missing required arguments
         arguments(
@@ -70,22 +77,8 @@ public class CLIOptionsTest {
                 "--source-catalog-properties",
                 "properties1=ab",
                 "--target-catalog-properties",
-                "properties2=cd",
-                "--output-dir",
-                "path"),
-            "Error: Missing required argument(s): --target-catalog-type=<type>"),
-        // missing required arguments
-        arguments(
-            Lists.newArrayList(
-                "--source-catalog-type",
-                "HIVE",
-                "--source-catalog-properties",
-                "properties1=ab",
-                "--target-catalog-type",
-                "NESSIE",
-                "--target-catalog-properties",
                 "properties2=cd"),
-            "Missing required option: '--output-dir=<outputDirPath>'"),
+            "Error: Missing required argument(s): --target-catalog-type=<type>"),
         arguments(
             Lists.newArrayList(
                 "--source-catalog-type",
@@ -101,9 +94,7 @@ public class CLIOptionsTest {
                 "--identifiers-from-file",
                 "file.txt",
                 "--identifiers-regex",
-                "^foo\\.",
-                "--output-dir",
-                "path"),
+                "^foo\\."),
             "Error: --identifiers=<identifiers>, --identifiers-from-file=<identifiersFromFile>, --identifiers-regex=<identifiersRegEx> are mutually exclusive (specify only one)"),
         arguments(
             Lists.newArrayList(
@@ -118,9 +109,7 @@ public class CLIOptionsTest {
                 "--identifiers",
                 "foo.tbl",
                 "--identifiers-from-file",
-                "file.txt",
-                "--output-dir",
-                "path"),
+                "file.txt"),
             "Error: --identifiers=<identifiers>, --identifiers-from-file=<identifiersFromFile> are mutually exclusive (specify only one)"),
         arguments(
             Lists.newArrayList(
@@ -135,9 +124,7 @@ public class CLIOptionsTest {
                 "--identifiers-regex",
                 "^foo\\.",
                 "--identifiers-from-file",
-                "file.txt",
-                "--output-dir",
-                "path"),
+                "file.txt"),
             "Error: --identifiers-from-file=<identifiersFromFile>, --identifiers-regex=<identifiersRegEx> are mutually exclusive (specify only one)"),
         arguments(
             Lists.newArrayList(
@@ -152,9 +139,7 @@ public class CLIOptionsTest {
                 "--identifiers",
                 "foo.tbl",
                 "--identifiers-regex",
-                "^foo\\.",
-                "--output-dir",
-                "path"),
+                "^foo\\."),
             "Error: --identifiers=<identifiers>, --identifiers-regex=<identifiersRegEx> are mutually exclusive "
                 + "(specify only one)"));
   }
@@ -186,9 +171,7 @@ public class CLIOptionsTest {
                 "--target-catalog-type",
                 "HIVE",
                 "--target-catalog-properties",
-                "k3=v3, k4=v4",
-                "--output-dir",
-                "path"),
+                "k3=v3, k4=v4"),
             "java.lang.IllegalArgumentException: Cannot initialize HadoopCatalog "
                 + "because warehousePath must not be null or empty"),
         arguments(
@@ -202,11 +185,37 @@ public class CLIOptionsTest {
                 "--target-catalog-properties",
                 "k3=v3, k4=v4",
                 "--identifiers-from-file",
-                "file.txt",
-                "--output-dir",
-                "path"),
+                "file.txt"),
             "java.lang.IllegalArgumentException: "
-                + "File specified in `--identifiers-from-file` option does not exist."));
+                + "File specified in `--identifiers-from-file` option does not exist."),
+        arguments(
+            Lists.newArrayList(
+                "--source-catalog-type",
+                "HADOOP",
+                "--source-catalog-properties",
+                "k1=v1,k2=v2",
+                "--target-catalog-type",
+                "HIVE",
+                "--target-catalog-properties",
+                "k3=v3, k4=v4",
+                "--output-dir",
+                "/path/to/file"),
+            "java.lang.IllegalArgumentException: "
+                + "path specified in `--output-dir` does not exist"),
+        arguments(
+            Lists.newArrayList(
+                "--source-catalog-type",
+                "HADOOP",
+                "--source-catalog-properties",
+                "k1=v1,k2=v2",
+                "--target-catalog-type",
+                "HIVE",
+                "--target-catalog-properties",
+                "k3=v3, k4=v4",
+                "--output-dir",
+                readOnlyDirLocation()),
+            "java.lang.IllegalArgumentException: "
+                + "path specified in `--output-dir` is not writable"));
   }
 
   @ParameterizedTest
@@ -241,5 +250,17 @@ public class CLIOptionsTest {
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(expectedErrorCode);
     Assertions.assertThat(run.getErr()).contains(expectedMessage);
+  }
+
+  private static String readOnlyDirLocation() {
+    Path readOnly = logDir.resolve(UUID.randomUUID().toString());
+    try {
+      Files.createDirectory(readOnly);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    readOnly.toFile().setWritable(false);
+
+    return readOnly.toAbsolutePath().toString();
   }
 }

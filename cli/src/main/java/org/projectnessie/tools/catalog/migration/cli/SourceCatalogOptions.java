@@ -25,34 +25,46 @@ public class SourceCatalogOptions {
   @CommandLine.Option(
       names = "--source-catalog-type",
       required = true,
-      description =
-          "source catalog type. "
-              + "Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, NESSIE, REST]")
-  protected org.projectnessie.tools.catalog.migration.cli.CatalogUtil.CatalogType type;
+      description = {
+        "Source catalog type. Can be one of these [CUSTOM, DYNAMODB, ECS, GLUE, HADOOP, HIVE, JDBC, "
+            + "NESSIE, REST].",
+        "Example: --source-catalog-type GLUE",
+        "         --source-catalog-type NESSIE"
+      })
+  protected CatalogMigrationUtil.CatalogType type;
 
   @CommandLine.Option(
       names = "--source-catalog-properties",
       required = true,
       split = ",",
-      description = "source catalog properties (like uri, warehouse, etc)")
+      description = {
+        "Catalog properties for source catalog (like uri, warehouse, etc).",
+        "Example: --source-catalog-properties warehouse=/tmp/warehouseHadoop,type=hadoop",
+        "         --source-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie"
+      })
   protected Map<String, String> properties;
 
   @CommandLine.Option(
       names = "--source-catalog-hadoop-conf",
       split = ",",
-      description =
-          "optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when "
-              + "using an Iceberg FileIO.")
+      description = {
+        "Optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when "
+            + "using an Iceberg FileIO.",
+        "Example: --source-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY"
+      })
   private Map<String, String> hadoopConf = new HashMap<>();
 
   @CommandLine.Option(
       names = {"--source-custom-catalog-impl"},
-      description =
-          "optional fully qualified class name of the custom catalog implementation of the source catalog. Required "
-              + "when the catalog type is CUSTOM.")
+      description = {
+        "Optional fully qualified class name of the custom catalog implementation of the source catalog. Required "
+            + "when the catalog type is CUSTOM.",
+        "Example: --source-custom-catalog-impl org.apache.iceberg.AwesomeCatalog"
+      })
   private String customCatalogImpl;
 
   Catalog build() {
-    return CatalogUtil.buildCatalog(properties, type, customCatalogImpl, hadoopConf);
+    return CatalogMigrationUtil.buildCatalog(
+        properties, type, "SOURCE_CATALOG_" + type.name(), customCatalogImpl, hadoopConf);
   }
 }
