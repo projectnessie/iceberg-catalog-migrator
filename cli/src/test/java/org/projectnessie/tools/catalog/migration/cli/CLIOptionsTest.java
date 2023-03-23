@@ -26,7 +26,6 @@ import java.util.UUID;
 import java.util.stream.Stream;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -146,7 +145,6 @@ public class CLIOptionsTest {
 
   @ParameterizedTest
   @MethodSource("optionErrors")
-  @Order(0)
   public void testOptionErrorsForRegister(List<String> args, String expectedMessage)
       throws Exception {
     executeAndValidateResults("register", args, expectedMessage, 2);
@@ -154,7 +152,6 @@ public class CLIOptionsTest {
 
   @ParameterizedTest
   @MethodSource("optionErrors")
-  @Order(1)
   public void testOptionErrorsForMigrate(List<String> args, String expectedMessage)
       throws Exception {
     executeAndValidateResults("migrate", args, expectedMessage, 2);
@@ -165,61 +162,72 @@ public class CLIOptionsTest {
         arguments(
             Lists.newArrayList(
                 "--source-catalog-type",
-                "HADOOP",
+                "HIVE",
                 "--source-catalog-properties",
                 "k1=v1,k2=v2",
                 "--target-catalog-type",
-                "HIVE",
+                "HADOOP",
                 "--target-catalog-properties",
                 "k3=v3, k4=v4"),
-            "java.lang.IllegalArgumentException: Cannot initialize HadoopCatalog "
+            "Error during CLI execution: Cannot initialize HadoopCatalog "
                 + "because warehousePath must not be null or empty"),
         arguments(
             Lists.newArrayList(
                 "--source-catalog-type",
-                "HADOOP",
+                "HIVE",
                 "--source-catalog-properties",
                 "k1=v1,k2=v2",
                 "--target-catalog-type",
-                "HIVE",
+                "HADOOP",
                 "--target-catalog-properties",
                 "k3=v3, k4=v4",
                 "--identifiers-from-file",
                 "file.txt"),
-            "java.lang.IllegalArgumentException: "
-                + "File specified in `--identifiers-from-file` option does not exist."),
+            "Error during CLI execution: File specified in `--identifiers-from-file` option does not exist."),
         arguments(
             Lists.newArrayList(
                 "--source-catalog-type",
-                "HADOOP",
+                "HIVE",
                 "--source-catalog-properties",
                 "k1=v1,k2=v2",
                 "--target-catalog-type",
-                "HIVE",
+                "HADOOP",
                 "--target-catalog-properties",
                 "k3=v3, k4=v4",
                 "--output-dir",
                 "/path/to/file"),
-            "java.lang.IllegalArgumentException: "
-                + "path specified in `--output-dir` does not exist"),
+            "Error during CLI execution: Path specified in `--output-dir` does not exist"),
         arguments(
             Lists.newArrayList(
                 "--source-catalog-type",
-                "HADOOP",
+                "HIVE",
                 "--source-catalog-properties",
                 "k1=v1,k2=v2",
                 "--target-catalog-type",
-                "HIVE",
+                "HADOOP",
                 "--target-catalog-properties",
                 "k3=v3, k4=v4",
                 "--output-dir",
                 readOnlyDirLocation()),
-            "java.lang.IllegalArgumentException: "
-                + "path specified in `--output-dir` is not writable"));
+            "Error during CLI execution: Path specified in `--output-dir` is not writable"),
+        // test with stacktrace
+        arguments(
+            Lists.newArrayList(
+                "--source-catalog-type",
+                "HIVE",
+                "--source-catalog-properties",
+                "k1=v1,k2=v2",
+                "--target-catalog-type",
+                "HADOOP",
+                "--target-catalog-properties",
+                "k3=v3, k4=v4",
+                "--output-dir",
+                readOnlyDirLocation(),
+                "--stacktrace"),
+            "java.lang.IllegalArgumentException: Path specified in `--output-dir` is not writable"));
   }
 
   @ParameterizedTest
-  @Order(2)
   @MethodSource("invalidArgs")
   public void testInvalidArgsForRegister(List<String> args, String expectedMessage)
       throws Exception {
@@ -227,7 +235,6 @@ public class CLIOptionsTest {
   }
 
   @ParameterizedTest
-  @Order(2)
   @MethodSource("invalidArgs")
   public void testInvalidArgsForMigrate(List<String> args, String expectedMessage)
       throws Exception {
@@ -235,7 +242,6 @@ public class CLIOptionsTest {
   }
 
   @Test
-  @Order(4)
   public void version() throws Exception {
     RunCLI run = RunCLI.runWithPrintWriter("--version");
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
@@ -259,7 +265,7 @@ public class CLIOptionsTest {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    readOnly.toFile().setWritable(false);
+    Assertions.assertThat(readOnly.toFile().setWritable(false)).isTrue();
 
     return readOnly.toAbsolutePath().toString();
   }

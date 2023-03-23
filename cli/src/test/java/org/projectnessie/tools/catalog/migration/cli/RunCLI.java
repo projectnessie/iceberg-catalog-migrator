@@ -66,7 +66,11 @@ public final class RunCLI {
         new CommandLine(new CatalogMigrationCLI())
             .setExecutionExceptionHandler(
                 (ex, cmd, parseResult) -> {
-                  cmd.getErr().println(cmd.getColorScheme().richStackTraceString(ex));
+                  if (enableStacktrace(arguments)) {
+                    cmd.getErr().println(cmd.getColorScheme().richStackTraceString(ex));
+                  } else {
+                    cmd.getErr().println("Error during CLI execution: " + ex.getMessage());
+                  }
                   return cmd.getExitCodeExceptionMapper() != null
                       ? cmd.getExitCodeExceptionMapper().getExitCode(ex)
                       : cmd.getCommandSpec().exitCodeOnExecutionException();
@@ -94,6 +98,15 @@ public final class RunCLI {
 
   public String getErr() {
     return err;
+  }
+
+  private static boolean enableStacktrace(String... args) {
+    for (String arg : args) {
+      if (arg.equalsIgnoreCase("--stacktrace")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

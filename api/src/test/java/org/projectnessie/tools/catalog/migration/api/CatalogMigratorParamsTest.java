@@ -36,14 +36,14 @@ public class CatalogMigratorParamsTest {
 
   @Test
   public void testInvalidArgs() {
-    Catalog catalog1 = new HadoopCatalog();
-    Catalog catalog2 = new HadoopCatalog();
+    Catalog sourceCatalog = new HadoopCatalog();
+    Catalog targetCatalog = new HadoopCatalog();
 
     Assertions.assertThatThrownBy(
             () ->
                 ImmutableCatalogMigrator.builder()
-                    .sourceCatalog(catalog2) // source-catalog is same as target catalog
-                    .targetCatalog(catalog2)
+                    .sourceCatalog(targetCatalog) // source-catalog is same as target catalog
+                    .targetCatalog(targetCatalog)
                     .deleteEntriesFromSourceCatalog(true)
                     .build()
                     .registerTables(Collections.singletonList(TableIdentifier.parse("foo.abc"))))
@@ -53,9 +53,9 @@ public class CatalogMigratorParamsTest {
     Assertions.assertThatThrownBy(
             () ->
                 ImmutableCatalogMigrator.builder()
-                    .sourceCatalog(catalog1)
-                    .targetCatalog(catalog2)
-                    .deleteEntriesFromSourceCatalog(true)
+                    .sourceCatalog(sourceCatalog)
+                    .targetCatalog(targetCatalog)
+                    .deleteEntriesFromSourceCatalog(false)
                     .build()
                     .registerTables(null))
         .isInstanceOf(IllegalArgumentException.class)
@@ -64,7 +64,7 @@ public class CatalogMigratorParamsTest {
     Assertions.assertThatThrownBy(
             () ->
                 ImmutableCatalogMigrator.builder()
-                    .sourceCatalog(catalog1)
+                    .sourceCatalog(sourceCatalog)
                     .targetCatalog(null) // target-catalog is null
                     .deleteEntriesFromSourceCatalog(true)
                     .build())
@@ -75,10 +75,24 @@ public class CatalogMigratorParamsTest {
             () ->
                 ImmutableCatalogMigrator.builder()
                     .sourceCatalog(null) // source-catalog is null
-                    .targetCatalog(catalog2)
+                    .targetCatalog(targetCatalog)
                     .deleteEntriesFromSourceCatalog(true)
                     .build())
         .isInstanceOf(NullPointerException.class)
         .hasMessageContaining("sourceCatalog");
+
+    // test source catalog as hadoop with `deleteEntriesFromSourceCatalog` as true.
+    Assertions.assertThatThrownBy(
+            () ->
+                ImmutableCatalogMigrator.builder()
+                    .sourceCatalog(sourceCatalog)
+                    .targetCatalog(targetCatalog)
+                    .deleteEntriesFromSourceCatalog(true)
+                    .build()
+                    .registerTables(Collections.emptyList()))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining(
+            "Source catalog is a Hadoop catalog and it doesn't support deleting the table entries just from the catalog. "
+                + "Please configure `deleteEntriesFromSourceCatalog` as `false`");
   }
 }

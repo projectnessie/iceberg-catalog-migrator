@@ -15,9 +15,12 @@
  */
 package org.projectnessie.tools.catalog.migration.api;
 
+import java.util.Set;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITNessieToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
@@ -30,8 +33,8 @@ public class ITNessieToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
-    catalog1 = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
-    catalog2 = HiveMetaStoreRunner.hiveCatalog();
+    sourceCatalog = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
+    targetCatalog = HiveMetaStoreRunner.hiveCatalog();
 
     createNamespaces();
   }
@@ -42,10 +45,24 @@ public class ITNessieToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
     HiveMetaStoreRunner.stopMetastore();
   }
 
-  // disable large table test for IT to save CI time. It will be executed only for UT.
-  @Override
-  @Disabled
-  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
-    super.testRegisterLargeNumberOfTables(deleteSourceTables);
+  @Test
+  public void testRegisterWithDefaultNamespace() {
+    sourceCatalog.createTable(TableIdentifier.of("tblx"), schema);
+
+    CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(false);
+    // should also include table from default namespace
+    Set<TableIdentifier> matchingTableIdentifiers =
+        catalogMigrator.getMatchingTableIdentifiers(null);
+    Assertions.assertThat(matchingTableIdentifiers).contains(TableIdentifier.parse("tblx"));
+
+    CatalogMigrationResult result =
+        catalogMigrator.registerTables(matchingTableIdentifiers).result();
+    // hive will not support default namespace (namespace with level = 0). Hence, register will
+    // fail.
+    Assertions.assertThat(result.registeredTableIdentifiers())
+        .doesNotContain(TableIdentifier.parse("tblx"));
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers())
+        .containsExactly(TableIdentifier.parse("tblx"));
+    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
   }
 }

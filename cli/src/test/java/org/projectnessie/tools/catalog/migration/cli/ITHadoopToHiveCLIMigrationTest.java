@@ -15,12 +15,8 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
-import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.DRY_RUN_FILE;
-import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.FAILED_IDENTIFIERS_FILE;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHadoopToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
@@ -28,8 +24,6 @@ public class ITHadoopToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
-    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
-    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
     sourceCatalogProperties = "warehouse=" + warehouse1.toAbsolutePath() + ",type=hadoop";
     targetCatalogProperties =
         "warehouse="
@@ -37,11 +31,11 @@ public class ITHadoopToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
             + ",uri="
             + HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris");
 
-    catalog1 = createHadoopCatalog(warehouse1.toString(), "catalog1");
-    catalog2 = HiveMetaStoreRunner.hiveCatalog();
+    sourceCatalog = createHadoopCatalog(warehouse1.toString(), "sourceCatalog");
+    targetCatalog = HiveMetaStoreRunner.hiveCatalog();
 
-    sourceCatalogType = catalogType(catalog1);
-    targetCatalogType = catalogType(catalog2);
+    sourceCatalogType = catalogType(sourceCatalog);
+    targetCatalogType = catalogType(targetCatalog);
 
     createNamespaces();
   }
@@ -50,12 +44,5 @@ public class ITHadoopToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
   protected static void tearDown() throws Exception {
     dropNamespaces();
     HiveMetaStoreRunner.stopMetastore();
-  }
-
-  // disable large table test for IT to save CI time. It will be executed only for UT.
-  @Override
-  @Disabled
-  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
-    super.testRegisterLargeNumberOfTables(deleteSourceTables);
   }
 }

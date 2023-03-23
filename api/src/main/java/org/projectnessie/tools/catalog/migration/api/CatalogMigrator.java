@@ -17,6 +17,7 @@ package org.projectnessie.tools.catalog.migration.api;
 
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -54,6 +55,24 @@ public abstract class CatalogMigrator {
     return false;
   }
 
+  @Value.Check
+  void check() {
+    Preconditions.checkArgument(
+        !targetCatalog().equals(sourceCatalog()), "target catalog is same as source catalog");
+
+    if (!(targetCatalog() instanceof SupportsNamespaces)) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "target catalog %s doesn't implement SupportsNamespaces to create missing namespaces.",
+              targetCatalog().name()));
+    }
+
+    if (deleteEntriesFromSourceCatalog() && sourceCatalog() instanceof HadoopCatalog) {
+      throw new UnsupportedOperationException(
+          "Source catalog is a Hadoop catalog and it doesn't support deleting the table entries just from the catalog. Please configure `deleteEntriesFromSourceCatalog` as `false`");
+    }
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(CatalogMigrator.class);
   private final ImmutableCatalogMigrationResult.Builder resultBuilder =
       ImmutableCatalogMigrationResult.builder();
@@ -65,9 +84,9 @@ public abstract class CatalogMigrator {
    *
    * @param identifierRegex regular expression pattern. If null, fetches all the table identifiers
    *     from all the namespaces.
-   * @return List of table identifiers.
+   * @return Set of table identifiers.
    */
-  public List<TableIdentifier> getMatchingTableIdentifiers(String identifierRegex) {
+  public Set<TableIdentifier> getMatchingTableIdentifiers(String identifierRegex) {
     Catalog sourceCatalog = sourceCatalog();
     if (!(sourceCatalog instanceof SupportsNamespaces)) {
       throw new UnsupportedOperationException(
@@ -76,7 +95,9 @@ public abstract class CatalogMigrator {
               sourceCatalog.name()));
     }
     LOG.info("Collecting all the namespaces from source catalog...");
-    List<Namespace> namespaces = ((SupportsNamespaces) sourceCatalog).listNamespaces();
+    Set<Namespace> namespaces = new HashSet<>();
+    getAllNamespacesFromSourceCatalog(Namespace.empty(), namespaces);
+
     Predicate<TableIdentifier> matchedIdentifiersPredicate;
     if (identifierRegex == null) {
       LOG.info("Collecting all the tables from all the namespaces of source catalog...");
@@ -90,12 +111,28 @@ public abstract class CatalogMigrator {
       matchedIdentifiersPredicate =
           tableIdentifier -> pattern.matcher(tableIdentifier.toString()).matches();
     }
-    return namespaces.stream()
-        .filter(Objects::nonNull)
-        .flatMap(
-            namespace ->
-                sourceCatalog.listTables(namespace).stream().filter(matchedIdentifiersPredicate))
-        .collect(Collectors.toList());
+    Set<TableIdentifier> identifiers =
+        namespaces.stream()
+            .filter(Objects::nonNull)
+            .flatMap(
+                namespace ->
+                    sourceCatalog.listTables(namespace).stream()
+                        .filter(matchedIdentifiersPredicate))
+            .collect(Collectors.toSet());
+
+    // add the tables from default namespace
+    try {
+      List<TableIdentifier> fromDefaultNamespace =
+          sourceCatalog.listTables(Namespace.empty()).stream()
+              .filter(matchedIdentifiersPredicate)
+              .collect(Collectors.toList());
+      identifiers.addAll(fromDefaultNamespace);
+    } catch (Exception exception) {
+      // some catalogs don't support default namespace. Hence, just log the warning and ignore the
+      // exception.
+      LOG.warn("Failed to identify tables from default namespace: {}", exception.getMessage());
+    }
+    return identifiers;
   }
 
   /**
@@ -104,19 +141,11 @@ public abstract class CatalogMigrator {
    * <p>Users must make sure that no in-progress commits on the tables of source catalog during
    * registration.
    *
-   * @param identifiers List of table identifiers to register or migrate
+   * @param identifiers collection of table identifiers to register or migrate
    * @return {@code this} for use in a chained invocation
    */
-  public CatalogMigrator registerTables(List<TableIdentifier> identifiers) {
+  public CatalogMigrator registerTables(Collection<TableIdentifier> identifiers) {
     Preconditions.checkArgument(identifiers != null, "Identifiers list is null");
-    Preconditions.checkArgument(
-        !targetCatalog().equals(sourceCatalog()), "target catalog is same as source catalog");
-    if (!(targetCatalog() instanceof SupportsNamespaces)) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "target catalog %s doesn't implement SupportsNamespaces to create missing namespaces.",
-              targetCatalog().name()));
-    }
 
     if (identifiers.isEmpty()) {
       LOG.warn("Identifiers list is empty");
@@ -132,23 +161,19 @@ public abstract class CatalogMigrator {
             resultBuilder.addFailedToRegisterTableIdentifiers(tableIdentifier);
           }
 
-          // HadoopCatalog dropTable will delete the table files completely even when purge is
-          // false. So, skip dropTable for HadoopCatalog.
-          boolean deleteTableFromSourceCatalog =
-              !(sourceCatalog() instanceof HadoopCatalog)
-                  && isRegistered
-                  && deleteEntriesFromSourceCatalog();
           try {
-            if (deleteTableFromSourceCatalog
+            if (isRegistered
+                && deleteEntriesFromSourceCatalog()
                 && !sourceCatalog().dropTable(tableIdentifier, false)) {
               resultBuilder.addFailedToDeleteTableIdentifiers(tableIdentifier);
             }
           } catch (Exception exception) {
             resultBuilder.addFailedToDeleteTableIdentifiers(tableIdentifier);
             if (enableStacktrace()) {
-              LOG.warn("Failed to delete the table after migration {}", tableIdentifier, exception);
+              LOG.error(
+                  "Failed to delete the table after migration {}", tableIdentifier, exception);
             } else {
-              LOG.warn(
+              LOG.error(
                   "Failed to delete the table after migration {} : {}",
                   tableIdentifier,
                   exception.getMessage());
@@ -163,25 +188,7 @@ public abstract class CatalogMigrator {
     return resultBuilder.build();
   }
 
-  private boolean registerTable(TableIdentifier tableIdentifier) {
-    try {
-      createNamespacesIfNotExist(tableIdentifier.namespace());
-      // register the table to the target catalog
-      TableOperations ops = ((BaseTable) sourceCatalog().loadTable(tableIdentifier)).operations();
-      targetCatalog().registerTable(tableIdentifier, ops.current().metadataFileLocation());
-      LOG.info("Successfully registered the table {}", tableIdentifier);
-      return true;
-    } catch (Exception ex) {
-      if (enableStacktrace()) {
-        LOG.warn("Unable to register the table {}", tableIdentifier, ex);
-      } else {
-        LOG.warn("Unable to register the table {} : {}", tableIdentifier, ex.getMessage());
-      }
-      return false;
-    }
-  }
-
-  private void createNamespacesIfNotExist(Namespace identifierNamespace) {
+  protected void createNamespacesIfNotExistOnTargetCatalog(Namespace identifierNamespace) {
     if (!processedNamespaces.contains(identifierNamespace)) {
       String[] levels = identifierNamespace.levels();
       for (int index = 0; index < levels.length; index++) {
@@ -190,11 +197,41 @@ public abstract class CatalogMigrator {
           try {
             ((SupportsNamespaces) targetCatalog()).createNamespace(namespace);
           } catch (AlreadyExistsException ex) {
-            // ignore the error as forcefully creating the namespace even if it exists to avoid
-            // namespaceExists() check.
+            LOG.debug(
+                "{}.Ignoring the error as forcefully creating the namespace even if it exists to avoid "
+                    + "namespaceExists() check.",
+                ex.getMessage());
           }
         }
       }
+    }
+  }
+
+  protected void getAllNamespacesFromSourceCatalog(Namespace namespace, Set<Namespace> visited) {
+    if (!namespace.isEmpty() && !visited.add(namespace)) {
+      return;
+    }
+    List<Namespace> children = ((SupportsNamespaces) sourceCatalog()).listNamespaces(namespace);
+    for (Namespace child : children) {
+      getAllNamespacesFromSourceCatalog(child, visited);
+    }
+  }
+
+  private boolean registerTable(TableIdentifier tableIdentifier) {
+    try {
+      createNamespacesIfNotExistOnTargetCatalog(tableIdentifier.namespace());
+      // register the table to the target catalog
+      TableOperations ops = ((BaseTable) sourceCatalog().loadTable(tableIdentifier)).operations();
+      targetCatalog().registerTable(tableIdentifier, ops.current().metadataFileLocation());
+      LOG.info("Successfully registered the table {}", tableIdentifier);
+      return true;
+    } catch (Exception ex) {
+      if (enableStacktrace()) {
+        LOG.error("Unable to register the table {}", tableIdentifier, ex);
+      } else {
+        LOG.error("Unable to register the table {} : {}", tableIdentifier, ex.getMessage());
+      }
+      return false;
     }
   }
 }

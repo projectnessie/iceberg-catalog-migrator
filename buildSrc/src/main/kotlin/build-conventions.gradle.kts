@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-plugins {
-  id("org.projectnessie.buildsupport.jacoco")
-  `eclipse`
-}
-
 val hasSrcMain = projectDir.resolve("src/main").exists()
 val hasSrcTest = projectDir.resolve("src/test").exists()
 
@@ -31,6 +26,8 @@ configureSpotless()
 configureJandex()
 
 configureJava()
+
+apply<CodeCoveragePlugin>()
 
 if (hasSrcMain || hasSrcTest) {
   configureCheckstyle()

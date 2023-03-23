@@ -31,6 +31,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.nessie.NessieCatalog;
 import org.apache.iceberg.types.Types;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -46,23 +47,31 @@ public abstract class AbstractTest {
     System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
   }
 
-  protected static Catalog catalog1;
+  protected static Catalog sourceCatalog;
 
-  protected static Catalog catalog2;
+  protected static Catalog targetCatalog;
+
   protected static final Schema schema =
       new Schema(
           Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get())).fields());
 
+  protected void validateAssumptionForHadoopCatalogAsSource(boolean deleteSourceTables) {
+    Assumptions.assumeFalse(
+        deleteSourceTables && sourceCatalog instanceof HadoopCatalog,
+        "deleting source tables is unsupported for HadoopCatalog");
+  }
+
   protected static void createNamespaces() {
-    namespaceList.forEach(namespace -> ((SupportsNamespaces) catalog1).createNamespace(namespace));
-    // don't create "db1" namespace in catalog2
+    namespaceList.forEach(
+        namespace -> ((SupportsNamespaces) sourceCatalog).createNamespace(namespace));
+    // don't create "db1" namespace in targetCatalog
     namespaceList
         .subList(0, 2)
-        .forEach(namespace -> ((SupportsNamespaces) catalog2).createNamespace(namespace));
+        .forEach(namespace -> ((SupportsNamespaces) targetCatalog).createNamespace(namespace));
   }
 
   protected static void dropNamespaces() {
-    Stream.of(catalog1, catalog2)
+    Stream.of(sourceCatalog, targetCatalog)
         .map(catalog -> (SupportsNamespaces) catalog)
         .forEach(
             catalog ->
@@ -73,15 +82,15 @@ public abstract class AbstractTest {
 
   protected static void createTables() {
     // two tables in 'foo' namespace
-    catalog1.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl1"), schema);
-    catalog1.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
+    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl1"), schema);
+    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
     // two tables in 'bar' namespace
-    catalog1.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl3"), schema);
-    catalog1.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl4"), schema);
+    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl3"), schema);
+    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl4"), schema);
   }
 
   protected static void dropTables() {
-    Stream.of(catalog1, catalog2)
+    Stream.of(sourceCatalog, targetCatalog)
         .forEach(
             catalog ->
                 namespaceList.stream()
@@ -93,7 +102,6 @@ public abstract class AbstractTest {
   protected static Catalog createHadoopCatalog(String warehousePath, String name) {
     Map<String, String> properties = new HashMap<>();
     properties.put("warehouse", warehousePath);
-    properties.put("type", "hadoop");
     return CatalogUtil.loadCatalog(
         HadoopCatalog.class.getName(), name, properties, new Configuration());
   }

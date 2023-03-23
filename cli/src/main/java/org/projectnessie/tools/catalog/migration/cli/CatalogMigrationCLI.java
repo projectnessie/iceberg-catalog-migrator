@@ -15,6 +15,8 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -26,10 +28,31 @@ public class CatalogMigrationCLI {
 
   public CatalogMigrationCLI() {}
 
+  private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
+
   public static void main(String... args) {
-    CommandLine commandLine = new CommandLine(new CatalogMigrationCLI());
+    CommandLine commandLine =
+        new CommandLine(new CatalogMigrationCLI())
+            .setExecutionExceptionHandler(
+                (ex, cmd, parseResult) -> {
+                  if (enableStacktrace(args)) {
+                    cmd.getErr().println(cmd.getColorScheme().richStackTraceString(ex));
+                  } else {
+                    consoleLog.error("Error during CLI execution: {}", ex.getMessage());
+                  }
+                  return 1;
+                });
     commandLine.setUsageHelpWidth(150);
     int exitCode = commandLine.execute(args);
     System.exit(exitCode);
+  }
+
+  private static boolean enableStacktrace(String... args) {
+    for (String arg : args) {
+      if (arg.equalsIgnoreCase("--stacktrace")) {
+        return true;
+      }
+    }
+    return false;
   }
 }

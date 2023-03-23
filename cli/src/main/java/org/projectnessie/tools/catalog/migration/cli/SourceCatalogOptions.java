@@ -38,9 +38,8 @@ public class SourceCatalogOptions {
       required = true,
       split = ",",
       description = {
-        "Catalog properties for source catalog (like uri, warehouse, etc).",
-        "Example: --source-catalog-properties warehouse=/tmp/warehouseHadoop,type=hadoop",
-        "         --source-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie"
+        "Iceberg catalog properties for source catalog (like uri, warehouse, etc).",
+        "Example: --source-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie"
       })
   private Map<String, String> properties;
 

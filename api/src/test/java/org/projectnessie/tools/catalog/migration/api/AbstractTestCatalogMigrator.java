@@ -17,7 +17,7 @@ package org.projectnessie.tools.catalog.migration.api;
 
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 import nl.altindag.log.LogCaptor;
 import nl.altindag.log.model.LogEvent;
@@ -27,8 +27,8 @@ import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -51,10 +51,11 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     dropTables();
   }
 
-  @Order(0)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegister(boolean deleteSourceTables) {
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
     CatalogMigrationResult result = registerAllTables(deleteSourceTables);
 
     Assertions.assertThat(result.registeredTableIdentifiers())
@@ -66,32 +67,33 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
 
-    if (deleteSourceTables && !(catalog1 instanceof HadoopCatalog)) {
+    if (deleteSourceTables && !(sourceCatalog instanceof HadoopCatalog)) {
       // table should be deleted after migration from source catalog
-      Assertions.assertThat(catalog1.listTables(Namespace.of("foo"))).isEmpty();
-      Assertions.assertThat(catalog1.listTables(Namespace.of("bar"))).isEmpty();
+      Assertions.assertThat(sourceCatalog.listTables(Namespace.of("foo"))).isEmpty();
+      Assertions.assertThat(sourceCatalog.listTables(Namespace.of("bar"))).isEmpty();
       return;
     }
     // tables should be present in source catalog.
-    Assertions.assertThat(catalog1.listTables(Namespace.of("foo")))
+    Assertions.assertThat(sourceCatalog.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(catalog1.listTables(Namespace.of("bar")))
+    Assertions.assertThat(sourceCatalog.listTables(Namespace.of("bar")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
 
-  @Order(1)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterSelectedTables(boolean deleteSourceTables) {
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
     // using `--identifiers` option
     CatalogMigrationResult result =
         catalogMigratorWithDefaultArgs(deleteSourceTables)
@@ -102,8 +104,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    Assertions.assertThat(catalog2.listTables(Namespace.of("foo"))).isEmpty();
-    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo"))).isEmpty();
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
         .containsExactly(TableIdentifier.parse("bar.tbl3"));
 
     // using --identifiers-regex option which matches all the tables starts with "foo."
@@ -118,17 +120,18 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
         .containsExactly(TableIdentifier.parse("bar.tbl3"));
   }
 
-  @Order(2)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterError(boolean deleteSourceTables) {
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
     // use invalid namespace which leads to NoSuchTableException
     CatalogMigrationResult result =
         catalogMigratorWithDefaultArgs(deleteSourceTables)
@@ -159,10 +162,11 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
   }
 
-  @Order(3)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterWithFewFailures(boolean deleteSourceTables) {
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
     // register only foo.tbl2
     CatalogMigrationResult result =
         catalogMigratorWithDefaultArgs(deleteSourceTables)
@@ -173,9 +177,9 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    if (deleteSourceTables && !(catalog1 instanceof HadoopCatalog)) {
+    if (deleteSourceTables && !(sourceCatalog instanceof HadoopCatalog)) {
       // create a table with the same name in source catalog which got deleted.
-      catalog1.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
+      sourceCatalog.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
     }
 
     // register all the tables from source catalog again. So that `foo.tbl2` will fail to register.
@@ -189,26 +193,28 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
         .contains(TableIdentifier.parse("foo.tbl2"));
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    Assertions.assertThat(catalog2.listTables(Namespace.of("foo")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
 
-  @Order(4)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterNoTables(boolean deleteSourceTables) {
-    // source catalog is catalog2 which has no tables.
+    // use source catalog as targetCatalog which has no tables.
+    Assumptions.assumeFalse(
+        deleteSourceTables && targetCatalog instanceof HadoopCatalog,
+        "deleting source tables is unsupported for HadoopCatalog");
     CatalogMigrator catalogMigrator =
         ImmutableCatalogMigrator.builder()
-            .sourceCatalog(catalog2)
-            .targetCatalog(catalog1)
+            .sourceCatalog(targetCatalog)
+            .targetCatalog(sourceCatalog)
             .deleteEntriesFromSourceCatalog(deleteSourceTables)
             .build();
-    List<TableIdentifier> matchingTableIdentifiers =
+    Set<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
     Assertions.assertThat(matchingTableIdentifiers).isEmpty();
     CatalogMigrationResult result =
@@ -218,15 +224,16 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
   }
 
-  @Order(5)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
-  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
+  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) {
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
     // additionally create 240 tables along with 4 tables created in beforeEach()
     IntStream.range(0, 240)
         .forEach(
             val ->
-                catalog1.createTable(
+                sourceCatalog.createTable(
                     TableIdentifier.of(Namespace.of("foo"), "tblx" + val), schema));
 
     CatalogMigrationResult result;
@@ -236,20 +243,21 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    Assertions.assertThat(catalog2.listTables(Namespace.of("foo"))).hasSize(242);
-    Assertions.assertThat(catalog2.listTables(Namespace.of("bar")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo"))).hasSize(242);
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
 
-  @Order(6)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testListingTableIdentifiers(boolean deleteSourceTables) {
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
     CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
 
     // should list all the tables from all the namespace when regex is null.
-    List<TableIdentifier> matchingTableIdentifiers =
+    Set<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
     Assertions.assertThat(matchingTableIdentifiers)
         .containsExactlyInAnyOrder(
@@ -269,12 +277,13 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(matchingTableIdentifiers).isEmpty();
   }
 
-  @Order(7)
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterWithNewNamespace(boolean deleteSourceTables) {
-    // catalog2 doesn't have a namespace "db1"
-    catalog1.createTable(TableIdentifier.of(Namespace.of("db1"), "tbl5"), schema);
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
+    // create namespace "db1" only in source catalog
+    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("db1"), "tbl5"), schema);
 
     CatalogMigrationResult result =
         catalogMigratorWithDefaultArgs(deleteSourceTables)
@@ -286,18 +295,19 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    Assertions.assertThat(catalog2.listTables(Namespace.of("db1")))
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("db1")))
         .containsExactly(TableIdentifier.parse("db1.tbl5"));
   }
 
-  @Order(7)
   @ParameterizedTest
   @CsvSource(value = {"false,false", "false,true", "true,false", "true,true"})
   public void testStacktrace(boolean deleteSourceTables, boolean enableStacktrace) {
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
     ImmutableCatalogMigrator migrator =
         ImmutableCatalogMigrator.builder()
-            .sourceCatalog(catalog1)
-            .targetCatalog(catalog2)
+            .sourceCatalog(sourceCatalog)
+            .targetCatalog(targetCatalog)
             .deleteEntriesFromSourceCatalog(deleteSourceTables)
             .enableStacktrace(enableStacktrace)
             .build();
@@ -331,8 +341,8 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
   protected CatalogMigrator catalogMigratorWithDefaultArgs(boolean deleteSourceTables) {
     return ImmutableCatalogMigrator.builder()
-        .sourceCatalog(catalog1)
-        .targetCatalog(catalog2)
+        .sourceCatalog(sourceCatalog)
+        .targetCatalog(targetCatalog)
         .deleteEntriesFromSourceCatalog(deleteSourceTables)
         .build();
   }

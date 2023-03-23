@@ -36,7 +36,6 @@ fun Project.configureTestTasks() {
     systemProperty("user.language", "en")
     systemProperty("user.country", "US")
     systemProperty("user.variant", "")
-    systemProperty("test.log.level", testLogLevel())
     filter {
       isFailOnNoMatchingTests = false
       when (name) {

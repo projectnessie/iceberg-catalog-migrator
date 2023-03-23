@@ -15,12 +15,14 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
-import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.DRY_RUN_FILE;
-import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.FAILED_IDENTIFIERS_FILE;
-
+import java.util.stream.IntStream;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
@@ -32,8 +34,6 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
-    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
-    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
     sourceCatalogProperties =
         "warehouse="
             + warehouse1.toAbsolutePath()
@@ -42,11 +42,11 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
     targetCatalogProperties =
         "uri=" + nessieUri + ",ref=main,warehouse=" + warehouse2.toAbsolutePath();
 
-    catalog1 = HiveMetaStoreRunner.hiveCatalog();
-    catalog2 = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
+    sourceCatalog = HiveMetaStoreRunner.hiveCatalog();
+    targetCatalog = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
 
-    sourceCatalogType = catalogType(catalog1);
-    targetCatalogType = catalogType(catalog2);
+    sourceCatalogType = catalogType(sourceCatalog);
+    targetCatalogType = catalogType(targetCatalog);
 
     createNamespaces();
   }
@@ -57,10 +57,47 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
     HiveMetaStoreRunner.stopMetastore();
   }
 
-  // disable large table test for IT to save CI time. It will be executed only for UT.
-  @Override
-  @Disabled
+  // Executing migration of large number of tables for only one set of catalogs to save CI time.
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
   public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
-    super.testRegisterLargeNumberOfTables(deleteSourceTables);
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+    // additionally create 240 tables along with 4 tables created in beforeEach()
+    IntStream.range(0, 240)
+        .forEach(
+            val ->
+                sourceCatalog.createTable(
+                    TableIdentifier.of(Namespace.of("foo"), "tblx" + val), schema));
+
+    RunCLI run = runCLI(deleteSourceTables, registerAllTablesArgs());
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    String operation = deleteSourceTables ? "migration" : "registration";
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Identified 244 tables for %s.", operation));
+    operation = deleteSourceTables ? "migrated" : "registered";
+    Assertions.assertThat(run.getOut())
+        .contains(
+            String.format(
+                "Summary: %nSuccessfully %s 244 tables from %s catalog to" + " %s catalog.",
+                operation, sourceCatalogType, targetCatalogType));
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
+
+    operation = deleteSourceTables ? "migration" : "registration";
+    // validate intermediate output
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Attempted %s for 100 tables out of 244 tables.", operation));
+    Assertions.assertThat(run.getOut())
+        .contains(String.format("Attempted %s for 200 tables out of 244 tables.", operation));
+
+    // manually refreshing catalog due to missing refresh in Nessie catalog
+    // https://github.com/apache/iceberg/pull/6789
+    targetCatalog.loadTable(TableIdentifier.parse("bar.tbl3")).refresh();
+
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo"))).hasSize(242);
+    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
   }
 }

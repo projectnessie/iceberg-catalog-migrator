@@ -6,7 +6,7 @@ There are various reasons why users may want to move their Iceberg tables to a d
 * They just heard about the awesome Arctic catalog (or Nessie) and want to move their existing iceberg tables to Dremio Arctic.
 * They had an on-premise Hive catalog, but want to move tables to a cloud-based catalog as part of their cloud migration strategy.
 
-Previously, before the Iceberg `1.1.0` release, the only way to migrate tables was by copying the data using the command `insert into catalog1.db.tableName as select * from catalog2.db.tableName`.
+Previously, before the Iceberg `1.1.0` release, the only way to migrate tables was by copying the data using the command `insert into targetCatalog.db.tableName as select * from sourceCatalog.db.tableName`.
 After the iceberg `1.1.0` release, all Iceberg Catalogs supports register table with the `catalog#registerTable()` API.
 However, custom code is needed to migrate all the tables in bulk. 
 **Hence, we introduce a CLI tool to migrate Iceberg tables in bulk from one Iceberg Catalog to another without a data copy.**
@@ -28,20 +28,21 @@ Commands:
 
 ```
 $ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar register -h
-Usage: iceberg-catalog-migrator register [-hV] [--disable-safety-prompts] [--dry-run] [--stacktrace] [--output-dir=<outputDirPath>]
-                                         (--source-catalog-type=<type> --source-catalog-properties=<String=String>[,<String=String>...]
-                                         [--source-catalog-properties=<String=String>[,<String=String>...]]...
-                                         [--source-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
-                                         [--source-custom-catalog-impl=<customCatalogImpl>]) (--target-catalog-type=<type>
-                                         --target-catalog-properties=<String=String>[,<String=String>...] [--target-catalog-properties=<String=String>
-                                         [,<String=String>...]]... [--target-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
-                                         [--target-custom-catalog-impl=<customCatalogImpl>]) [--identifiers=<identifiers>[,<identifiers>...]
-                                         [--identifiers=<identifiers>[,<identifiers>...]]... | --identifiers-from-file=<identifiersFromFile> |
-                                         --identifiers-regex=<identifiersRegEx>]
-Bulk register the iceberg tables from source catalog to target catalog without data copy.
+Usage: iceberg-catalog-migrator migrate [-hV] [--disable-safety-prompts] [--dry-run] [--stacktrace] [--output-dir=<outputDirPath>]
+                                        (--source-catalog-type=<type> --source-catalog-properties=<String=String>[,<String=String>...]
+                                        [--source-catalog-properties=<String=String>[,<String=String>...]]...
+                                        [--source-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
+                                        [--source-custom-catalog-impl=<customCatalogImpl>]) (--target-catalog-type=<type>
+                                        --target-catalog-properties=<String=String>[,<String=String>...] [--target-catalog-properties=<String=String>
+                                        [,<String=String>...]]... [--target-catalog-hadoop-conf=<String=String>[,<String=String>...]]...
+                                        [--target-custom-catalog-impl=<customCatalogImpl>]) [--identifiers=<identifiers>[,<identifiers>...]
+                                        [--identifiers=<identifiers>[,<identifiers>...]]... | --identifiers-from-file=<identifiersFromFile> |
+                                        --identifiers-regex=<identifiersRegEx>]
+Bulk migrate the iceberg tables from source catalog to target catalog without data copy. Table entries from source catalog will be deleted after the
+successful migration to the target catalog.
       --output-dir=<outputDirPath>
                      Optional local output directory path to write CLI output files like `failed_identifiers.txt`, `failed_to_delete_at_source.txt`,
-                       `dry_run_identifiers.txt`. If not specified, uses present working directory.
+                       `dry_run_identifiers.txt`. If not specified, uses the present working directory.
                      Example: --output-dir /tmp/output/
                               --output-dir $PWD/output_folder
       --dry-run      Optional configuration to simulate the registration without actually registering. Can learn about a list of tables that will be
@@ -57,9 +58,8 @@ Source catalog options:
                      Example: --source-catalog-type GLUE
                               --source-catalog-type NESSIE
       --source-catalog-properties=<String=String>[,<String=String>...]
-                     Catalog properties for source catalog (like uri, warehouse, etc).
-                     Example: --source-catalog-properties warehouse=/tmp/warehouseHadoop,type=hadoop
-                              --source-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie
+                     Iceberg catalog properties for source catalog (like uri, warehouse, etc).
+                     Example: --source-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie
       --source-catalog-hadoop-conf=<String=String>[,<String=String>...]
                      Optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg FileIO.
                      Example: --source-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
@@ -73,9 +73,8 @@ Target catalog options:
                      Example: --target-catalog-type GLUE
                               --target-catalog-type NESSIE
       --target-catalog-properties=<String=String>[,<String=String>...]
-                     Catalog properties for target catalog (like uri, warehouse, etc).
-                     Example: --target-catalog-properties warehouse=/tmp/warehouseHadoop,type=hadoop
-                              --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie
+                     Iceberg catalog properties for target catalog (like uri, warehouse, etc).
+                     Example: --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie
       --target-catalog-hadoop-conf=<String=String>[,<String=String>...]
                      Optional target catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg FileIO.
                      Example: --target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
@@ -85,12 +84,12 @@ Target catalog options:
                      Example: --target-custom-catalog-impl org.apache.iceberg.AwesomeCatalog
 Identifier options:
       --identifiers=<identifiers>[,<identifiers>...]
-                     Optional selective list of identifiers to register. If not specified, all the tables will be registered. Use this when there are
+                     Optional selective set of identifiers to register. If not specified, all the tables will be registered. Use this when there are
                        few identifiers that need to be registered. For a large number of identifiers, use the `--identifiers-from-file` or
                        `--identifiers-regex` option.
                      Example: --identifiers foo.t1,bar.t2
       --identifiers-from-file=<identifiersFromFile>
-                     Optional text file path that contains a list of table identifiers (one per line) to register. Should not be used with
+                     Optional text file path that contains a set of table identifiers (one per line) to register. Should not be used with
                        `--identifiers` or `--identifiers-regex` option.
                      Example: --identifiers-from-file /tmp/files/ids.txt
       --identifiers-regex=<identifiersRegEx>

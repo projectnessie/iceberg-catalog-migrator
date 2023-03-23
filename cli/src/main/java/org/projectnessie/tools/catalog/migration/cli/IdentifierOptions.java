@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.slf4j.Logger;
@@ -34,17 +34,17 @@ public class IdentifierOptions {
       names = {"--identifiers"},
       split = ",",
       description = {
-        "Optional selective list of identifiers to register. If not specified, all the tables will be registered. "
+        "Optional selective set of identifiers to register. If not specified, all the tables will be registered. "
             + "Use this when there are few identifiers that need to be registered. For a large number of identifiers, "
             + "use the `--identifiers-from-file` or `--identifiers-regex` option.",
         "Example: --identifiers foo.t1,bar.t2"
       })
-  protected List<String> identifiers = new ArrayList<>();
+  protected Set<String> identifiers = new HashSet<>();
 
   @CommandLine.Option(
       names = {"--identifiers-from-file"},
       description = {
-        "Optional text file path that contains a list of table identifiers (one per line) to register. Should not be "
+        "Optional text file path that contains a set of table identifiers (one per line) to register. Should not be "
             + "used with `--identifiers` or `--identifiers-regex` option.",
         "Example: --identifiers-from-file /tmp/files/ids.txt"
       })
@@ -59,30 +59,32 @@ public class IdentifierOptions {
       })
   protected String identifiersRegEx;
 
-  private final Logger consoleLog = LoggerFactory.getLogger("console-log");
+  private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
 
-  protected List<TableIdentifier> processIdentifiersInput() {
+  protected Set<TableIdentifier> processIdentifiersInput() {
     if (identifiersFromFile != null && !Files.exists(Paths.get(identifiersFromFile))) {
       throw new IllegalArgumentException(
           "File specified in `--identifiers-from-file` option does not exist.");
     }
-    List<TableIdentifier> tableIdentifiers;
+    Set<TableIdentifier> tableIdentifiers;
     if (identifiersFromFile != null) {
       try {
-        consoleLog.info("Collecting identifiers from the file {}...", identifiersFromFile);
+        consoleLog.info("Collecting identifiers from the file {} ...", identifiersFromFile);
         tableIdentifiers =
             Files.readAllLines(Paths.get(identifiersFromFile)).stream()
+                .map(String::trim)
+                .filter(string -> !string.isEmpty())
                 .map(TableIdentifier::parse)
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
       } catch (IOException e) {
         throw new UncheckedIOException(
             String.format("Failed to read the file: %s", identifiersFromFile), e);
       }
     } else if (!identifiers.isEmpty()) {
       tableIdentifiers =
-          identifiers.stream().map(TableIdentifier::parse).collect(Collectors.toList());
+          identifiers.stream().map(TableIdentifier::parse).collect(Collectors.toSet());
     } else {
-      tableIdentifiers = Collections.emptyList();
+      tableIdentifiers = Collections.emptySet();
     }
     return tableIdentifiers;
   }

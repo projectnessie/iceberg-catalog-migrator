@@ -39,8 +39,8 @@ public class CustomCatalogMigratorTest extends AbstractTest {
 
   @BeforeAll
   protected static void setup() {
-    catalog1 = createCustomCatalog(warehouse1.toAbsolutePath().toString(), "catalog1");
-    catalog2 = createCustomCatalog(warehouse2.toAbsolutePath().toString(), "catalog2");
+    sourceCatalog = createCustomCatalog(warehouse1.toAbsolutePath().toString(), "sourceCatalog");
+    targetCatalog = createCustomCatalog(warehouse2.toAbsolutePath().toString(), "targetCatalog");
 
     createNamespaces();
   }
@@ -64,9 +64,9 @@ public class CustomCatalogMigratorTest extends AbstractTest {
   public void testRegister() {
     CatalogMigrator catalogMigrator =
         ImmutableCatalogMigrator.builder()
-            .sourceCatalog(catalog1)
-            .targetCatalog(catalog2)
-            .deleteEntriesFromSourceCatalog(true)
+            .sourceCatalog(sourceCatalog)
+            .targetCatalog(targetCatalog)
+            .deleteEntriesFromSourceCatalog(false)
             .build();
     // should fail to register as catalog doesn't support register table operations.
     CatalogMigrationResult result =
@@ -91,7 +91,6 @@ public class CustomCatalogMigratorTest extends AbstractTest {
 
     Map<String, String> properties = new HashMap<>();
     properties.put("warehouse", warehousePath);
-    properties.put("type", "hadoop");
     TestCatalog testCatalog = new TestCatalog();
     testCatalog.setConf(new Configuration());
     testCatalog.initialize(name, properties);

@@ -16,13 +16,16 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Iterables;
+import java.io.Console;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -40,7 +43,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
       exclusive = false,
       multiplicity = "1",
       heading = "Source catalog options: %n")
-  private SourceCatalogOptions sourceCatalogOptions;
+  protected SourceCatalogOptions sourceCatalogOptions;
 
   @CommandLine.ArgGroup(
       exclusive = false,
@@ -79,18 +82,19 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
       names = {"--stacktrace"},
       description =
           "Optional configuration to enable capturing stacktrace in logs in case of failures.")
-  protected boolean enableStackTrace;
+  private boolean enableStackTrace;
 
   private static final int BATCH_SIZE = 100;
   public static final String FAILED_IDENTIFIERS_FILE = "failed_identifiers.txt";
   public static final String FAILED_TO_DELETE_AT_SOURCE_FILE = "failed_to_delete_at_source.txt";
   public static final String DRY_RUN_FILE = "dry_run_identifiers.txt";
 
-  private final Logger consoleLog = LoggerFactory.getLogger("console-log");
+  private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
 
   public BaseRegisterCommand() {}
 
-  protected abstract CatalogMigrator catalogMigrator(Catalog sourceCatalog, Catalog targetCatalog);
+  protected abstract CatalogMigrator catalogMigrator(
+      Catalog sourceCatalog, Catalog targetCatalog, boolean enableStackTrace);
 
   protected abstract boolean canProceed(Catalog sourceCatalog);
 
@@ -102,15 +106,15 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
   @Override
   public Integer call() {
-    List<TableIdentifier> identifiers = Collections.emptyList();
+    Set<TableIdentifier> identifiers = Collections.emptySet();
+    String identifierRegEx = identifierOptions != null ? identifierOptions.identifiersRegEx : null;
+
     if (identifierOptions != null) {
       identifiers = identifierOptions.processIdentifiersInput();
     }
+    checkAndWarnAboutIdentifiers(identifiers, identifierRegEx);
 
-    Preconditions.checkArgument(
-        Files.exists(outputDirPath), "path specified in `--output-dir` does not exist");
-    Preconditions.checkArgument(
-        Files.isWritable(outputDirPath), "path specified in `--output-dir` is not writable");
+    validateOutputDir();
 
     Catalog sourceCatalog = sourceCatalogOptions.build();
     consoleLog.info("Configured source catalog: {}", sourceCatalog.name());
@@ -119,35 +123,25 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     consoleLog.info("Configured target catalog: {}", targetCatalog.name());
 
     if (!isDryRun && !disablePrompts && !canProceed(sourceCatalog)) {
-      return 0;
+      return 2;
     }
 
-    CatalogMigrator catalogMigrator = catalogMigrator(sourceCatalog, targetCatalog);
+    CatalogMigrator catalogMigrator =
+        catalogMigrator(sourceCatalog, targetCatalog, enableStackTrace);
 
-    String identifierRegEx = identifierOptions != null ? identifierOptions.identifiersRegEx : null;
     if (identifiers.isEmpty()) {
-      if (identifierRegEx != null) {
-        consoleLog.info(
-            "User has not specified the table identifiers."
-                + " Selecting all the tables from all the namespaces from the source catalog "
-                + "which matches the regex pattern:{}",
-            identifierRegEx);
-      } else {
-        consoleLog.info(
-            "User has not specified the table identifiers."
-                + " Selecting all the tables from all the namespaces from the source catalog.");
-      }
-
+      consoleLog.info("Identifying tables for {} ...", operation());
       identifiers = catalogMigrator.getMatchingTableIdentifiers(identifierRegEx);
       if (identifiers.isEmpty()) {
-        consoleLog.info(
-            "No tables are identified for {}. Please check `catalog_migration.log` file for more info.",
+        consoleLog.warn(
+            "No tables were identified for {}. Please check `catalog_migration.log` file for more info.",
             operation());
-        return 0;
+        return 2;
       }
     }
 
     if (isDryRun) {
+      consoleLog.info("Dry run is completed.");
       handleDryRunResult(identifiers);
       return 0;
     }
@@ -156,38 +150,80 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
     consoleLog.info("Started {} ...", operation());
 
-    List<List<TableIdentifier>> identifierBatches = Lists.partition(identifiers, BATCH_SIZE);
-    int totalIdentifiers = identifiers.size();
-    AtomicInteger counter = new AtomicInteger();
-    identifierBatches.forEach(
-        identifierBatch -> {
-          catalogMigrator.registerTables(identifierBatch);
-          consoleLog.info(
-              "Attempted {} for {} tables out of {} tables.",
-              operation(),
-              counter.addAndGet(identifierBatch.size()),
-              totalIdentifiers);
-        });
+    CatalogMigrationResult result;
+    try {
+      Iterable<List<TableIdentifier>> identifierBatches =
+          Iterables.partition(identifiers, BATCH_SIZE);
+      int totalIdentifiers = identifiers.size();
+      AtomicInteger counter = new AtomicInteger();
+      identifierBatches.forEach(
+          identifierBatch -> {
+            catalogMigrator.registerTables(identifierBatch);
+            consoleLog.info(
+                "Attempted {} for {} tables out of {} tables.",
+                operation(),
+                counter.addAndGet(identifierBatch.size()),
+                totalIdentifiers);
+          });
+    } finally {
+      consoleLog.info("Finished {} ...", operation());
+      result = catalogMigrator.result();
+      handleResults(result);
+    }
 
-    handleResults(catalogMigrator.result());
+    if (!result.failedToRegisterTableIdentifiers().isEmpty()
+        || !result.failedToDeleteTableIdentifiers().isEmpty()
+        || result.registeredTableIdentifiers().isEmpty()) {
+      return 1;
+    }
+
     return 0;
   }
 
-  private void handleResults(CatalogMigrationResult result) {
-    writeToFile(
-        outputDirPath.resolve(FAILED_IDENTIFIERS_FILE), result.failedToRegisterTableIdentifiers());
-    writeToFile(
-        outputDirPath.resolve(FAILED_TO_DELETE_AT_SOURCE_FILE),
-        result.failedToDeleteTableIdentifiers());
-    consoleLog.info("Finished {} ...", operation());
-    printSummary(result);
-    printDetails(result);
+  private void checkAndWarnAboutIdentifiers(
+      Set<TableIdentifier> identifiers, String identifierRegEx) {
+    if (identifiers.isEmpty()) {
+      if (identifierRegEx != null) {
+        consoleLog.warn(
+            "User has not specified the table identifiers."
+                + " Will be selecting all the tables from all the namespaces from the source catalog "
+                + "which matches the regex pattern:{}",
+            identifierRegEx);
+      } else {
+        consoleLog.warn(
+            "User has not specified the table identifiers."
+                + " Will be selecting all the tables from all the namespaces from the source catalog.");
+      }
+    }
   }
 
-  private void handleDryRunResult(List<TableIdentifier> identifiers) {
-    writeToFile(outputDirPath.resolve(DRY_RUN_FILE), identifiers);
-    consoleLog.info("Dry run is completed.");
-    printDryRunResult(identifiers);
+  private void validateOutputDir() {
+    Preconditions.checkArgument(
+        Files.exists(outputDirPath), "Path specified in `--output-dir` does not exist");
+    Preconditions.checkArgument(
+        Files.isWritable(outputDirPath), "Path specified in `--output-dir` is not writable");
+  }
+
+  private void handleResults(CatalogMigrationResult result) {
+    try {
+      writeToFile(
+          outputDirPath.resolve(FAILED_IDENTIFIERS_FILE),
+          result.failedToRegisterTableIdentifiers());
+      writeToFile(
+          outputDirPath.resolve(FAILED_TO_DELETE_AT_SOURCE_FILE),
+          result.failedToDeleteTableIdentifiers());
+    } finally {
+      printSummary(result);
+      printDetails(result);
+    }
+  }
+
+  private void handleDryRunResult(Set<TableIdentifier> identifiers) {
+    try {
+      writeToFile(outputDirPath.resolve(DRY_RUN_FILE), identifiers);
+    } finally {
+      printDryRunResult(identifiers);
+    }
   }
 
   private void printSummary(CatalogMigrationResult result) {
@@ -201,7 +237,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
           targetCatalogOptions.type.name());
     }
     if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
-      consoleLog.info(
+      consoleLog.error(
           "Failed to {} {} tables from {} catalog to {} catalog. "
               + "Please check the `catalog_migration.log` file for the failure reason. "
               + "Failed identifiers are written into `{}`. "
@@ -214,7 +250,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
           FAILED_IDENTIFIERS_FILE);
     }
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
-      consoleLog.info(
+      consoleLog.error(
           "Failed to delete {} tables from {} catalog. "
               + "Please check the `catalog_migration.log` file for the failure reason. "
               + "{}Failed to delete identifiers are written into `{}`.",
@@ -236,7 +272,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     }
 
     if (!result.failedToRegisterTableIdentifiers().isEmpty()) {
-      consoleLog.info(
+      consoleLog.error(
           "Failed to {} these tables:{}{}",
           operate(),
           System.lineSeparator(),
@@ -244,14 +280,14 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
     }
 
     if (!result.failedToDeleteTableIdentifiers().isEmpty()) {
-      consoleLog.warn(
+      consoleLog.error(
           "Failed to delete these tables from source catalog:{}{}",
           System.lineSeparator(),
           result.failedToDeleteTableIdentifiers());
     }
   }
 
-  private void printDryRunResult(List<TableIdentifier> result) {
+  private void printDryRunResult(Set<TableIdentifier> result) {
     consoleLog.info("Summary: ");
     consoleLog.info(
         "Identified {} tables for {} by dry-run. These identifiers are also written into {}. "
@@ -267,7 +303,7 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
         result);
   }
 
-  private static void writeToFile(Path filePath, List<TableIdentifier> identifiers) {
+  private static void writeToFile(Path filePath, Collection<TableIdentifier> identifiers) {
     if (identifiers.isEmpty()) {
       return;
     }
@@ -277,6 +313,25 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
       Files.write(filePath, identifiersString);
     } catch (IOException e) {
       throw new UncheckedIOException("Failed to write the file:" + filePath, e);
+    }
+  }
+
+  protected boolean proceed() {
+    Console console = System.console();
+    while (true) {
+      consoleLog.info(
+          "Are you certain that you wish to proceed, after reading the above warnings? (yes/no):");
+      String input = console.readLine();
+
+      if (input.equalsIgnoreCase("yes")) {
+        consoleLog.info("Continuing...");
+        return true;
+      } else if (input.equalsIgnoreCase("no")) {
+        consoleLog.info("Aborting...");
+        return false;
+      } else {
+        consoleLog.info("Invalid input. Please enter 'yes' or 'no'.");
+      }
     }
   }
 }

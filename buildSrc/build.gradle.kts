@@ -31,14 +31,6 @@ dependencies {
   implementation(baselibs.idea.ext)
   implementation(baselibs.shadow)
   implementation(baselibs.errorprone)
-  implementation(baselibs.nessie.buildsupport.jacoco)
-  implementation(baselibs.nessie.buildsupport.reflectionconfig)
-
-  testImplementation(platform(baselibs.junit.bom))
-  testImplementation(baselibs.assertj.core)
-  testImplementation(baselibs.junit.jupiter.api)
-  testImplementation(baselibs.junit.jupiter.params)
-  testRuntimeOnly(baselibs.junit.jupiter.engine)
 }
 
 java {

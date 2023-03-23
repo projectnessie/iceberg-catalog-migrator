@@ -18,6 +18,8 @@ package org.projectnessie.tools.catalog.migration.cli;
 import org.apache.iceberg.catalog.Catalog;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
 import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -32,8 +34,12 @@ import picocli.CommandLine;
         "Bulk register the iceberg tables from source catalog to target catalog without data copy.")
 public class RegisterCommand extends BaseRegisterCommand {
 
+  private static final String newLine = System.lineSeparator();
+  private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
+
   @Override
-  protected CatalogMigrator catalogMigrator(Catalog sourceCatalog, Catalog targetCatalog) {
+  protected CatalogMigrator catalogMigrator(
+      Catalog sourceCatalog, Catalog targetCatalog, boolean enableStackTrace) {
     return ImmutableCatalogMigrator.builder()
         .sourceCatalog(sourceCatalog)
         .targetCatalog(targetCatalog)
@@ -44,7 +50,27 @@ public class RegisterCommand extends BaseRegisterCommand {
 
   @Override
   protected boolean canProceed(Catalog sourceCatalog) {
-    return PromptUtil.proceedForRegistration();
+    consoleLog.warn(
+        "{}"
+            + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
+            + "{}\tcan lead to a data loss as the in-progress commits will not be considered for migration. "
+            + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
+            + "catalog.{}"
+            + "{}"
+            + "\tb) After the registration, successfully registered tables will be present in both source and target "
+            + "catalog. "
+            + "{}\tHaving the same metadata.json registered in more than one catalog can lead to missing updates, "
+            + "loss of data, and table corruption. "
+            + "{}\tUse `migrate` command to automatically delete the table from source catalog after "
+            + "migration.",
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine);
+    return proceed();
   }
 
   @Override

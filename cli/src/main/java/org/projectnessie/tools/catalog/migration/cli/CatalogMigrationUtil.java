@@ -52,8 +52,6 @@ public final class CatalogMigrationUtil {
       Map<String, String> hadoopConf) {
     Preconditions.checkArgument(catalogProperties != null, "catalog properties is null");
     Preconditions.checkArgument(catalogType != null, "catalog type is null");
-    Preconditions.checkArgument(catalogName != null, "catalog name is null");
-    Preconditions.checkArgument(!catalogName.trim().isEmpty(), "catalog name is empty");
     Configuration catalogConf = new Configuration();
     if (hadoopConf != null) {
       hadoopConf.forEach(catalogConf::set);

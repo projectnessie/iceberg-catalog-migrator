@@ -38,9 +38,8 @@ public class TargetCatalogOptions {
       required = true,
       split = ",",
       description = {
-        "Catalog properties for target catalog (like uri, warehouse, etc).",
-        "Example: --target-catalog-properties warehouse=/tmp/warehouseHadoop,type=hadoop",
-        "         --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie"
+        "Iceberg catalog properties for target catalog (like uri, warehouse, etc).",
+        "Example: --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie"
       })
   private Map<String, String> properties;
 

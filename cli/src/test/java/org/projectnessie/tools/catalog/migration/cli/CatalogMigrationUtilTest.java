@@ -30,7 +30,6 @@ import org.apache.iceberg.nessie.NessieCatalog;
 import org.apache.iceberg.types.Types;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -49,7 +48,6 @@ public class CatalogMigrationUtilTest {
     return Stream.of("", " ", null);
   }
 
-  @Order(0)
   @ParameterizedTest()
   @MethodSource("blankOrNullStrings")
   public void testCustomCatalogWithoutImpl(String impl) {
@@ -66,7 +64,6 @@ public class CatalogMigrationUtilTest {
             "Need to specify the fully qualified class name of the custom catalog impl");
   }
 
-  @Order(1)
   @Test
   public void testInvalidArgs() {
     Assertions.assertThatThrownBy(
@@ -83,24 +80,6 @@ public class CatalogMigrationUtilTest {
             () ->
                 CatalogMigrationUtil.buildCatalog(
                     Collections.emptyMap(),
-                    CatalogMigrationUtil.CatalogType.HIVE,
-                    null,
-                    null,
-                    null))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("catalog name is null");
-
-    Assertions.assertThatThrownBy(
-            () ->
-                CatalogMigrationUtil.buildCatalog(
-                    Collections.emptyMap(), CatalogMigrationUtil.CatalogType.HIVE, " ", null, null))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("catalog name is empty");
-
-    Assertions.assertThatThrownBy(
-            () ->
-                CatalogMigrationUtil.buildCatalog(
-                    Collections.emptyMap(),
                     CatalogMigrationUtil.CatalogType.CUSTOM,
                     "catalogName",
                     "abc",
@@ -111,7 +90,6 @@ public class CatalogMigrationUtilTest {
   }
 
   @Test
-  @Order(2)
   public void testBuildHadoopCatalog() {
     Map<String, String> properties = new HashMap<>();
     properties.put("warehouse", logDir.toAbsolutePath().toString());
@@ -137,7 +115,6 @@ public class CatalogMigrationUtilTest {
   }
 
   @Test
-  @Order(3)
   public void testBuildNessieCatalog() {
     Map<String, String> properties = new HashMap<>();
     properties.put("warehouse", logDir.toAbsolutePath().toString());
@@ -153,7 +130,6 @@ public class CatalogMigrationUtilTest {
   }
 
   @Test
-  @Order(4)
   public void testBuildHiveCatalog() {
     Map<String, String> properties = new HashMap<>();
     properties.put("warehouse", logDir.toAbsolutePath().toString());

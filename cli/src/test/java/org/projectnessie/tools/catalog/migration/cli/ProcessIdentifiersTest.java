@@ -15,10 +15,12 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import com.google.common.collect.Sets;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Set;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -27,11 +29,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 public class ProcessIdentifiersTest {
 
-  protected static @TempDir Path logDir;
+  protected static @TempDir Path tempDir;
 
   @BeforeAll
   protected static void initLogDir() {
-    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
+    System.setProperty("catalog.migration.log.dir", tempDir.toAbsolutePath().toString());
   }
 
   @Test
@@ -39,12 +41,12 @@ public class ProcessIdentifiersTest {
     Assertions.assertThat(new IdentifierOptions().processIdentifiersInput()).isEmpty();
 
     IdentifierOptions identifierOptions = new IdentifierOptions();
-    identifierOptions.identifiers = Arrays.asList("foo.abc", "bar.def");
+    identifierOptions.identifiers = Sets.newHashSet("foo.abc", "bar.def");
     Assertions.assertThat(identifierOptions.processIdentifiersInput())
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.abc"), TableIdentifier.parse("bar.def"));
 
-    Path identifierFile = logDir.resolve("file_with_ids.txt");
+    Path identifierFile = tempDir.resolve("file_with_ids.txt");
     Files.write(identifierFile, Arrays.asList("db1.t1", "db2.t2", "db123.t5"));
     IdentifierOptions newOptions = new IdentifierOptions();
     newOptions.identifiersFromFile = identifierFile.toAbsolutePath().toString();
@@ -54,16 +56,47 @@ public class ProcessIdentifiersTest {
             TableIdentifier.parse("db2.t2"),
             TableIdentifier.parse("db123.t5"));
 
-    identifierFile.toFile().setReadable(false);
+    Assertions.assertThat(identifierFile.toFile().setReadable(false)).isTrue();
     Assertions.assertThatThrownBy(newOptions::processIdentifiersInput)
         .isInstanceOf(UncheckedIOException.class)
         .hasMessageContaining("Failed to read the file: " + identifierFile);
-    identifierFile.toFile().setReadable(true);
+    Assertions.assertThat(identifierFile.toFile().setReadable(true)).isTrue();
 
     IdentifierOptions options = new IdentifierOptions();
     options.identifiersFromFile = "path/to/file";
     Assertions.assertThatThrownBy(options::processIdentifiersInput)
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("File specified in `--identifiers-from-file` option does not exist");
+
+    // empty file
+    identifierFile = tempDir.resolve("ids1.txt");
+    Files.createFile(identifierFile);
+    options = new IdentifierOptions();
+    newOptions.identifiersFromFile = identifierFile.toAbsolutePath().toString();
+    Assertions.assertThat(options.processIdentifiersInput()).isEmpty();
+
+    // with some blanks
+    identifierFile = tempDir.resolve("ids2.txt");
+    String[] lines = {"abc. def", "    abc 123 ", "", "", "    xyz%n123"};
+    Files.writeString(identifierFile, String.join(System.lineSeparator(), lines));
+    options = new IdentifierOptions();
+    options.identifiersFromFile = identifierFile.toAbsolutePath().toString();
+    Set<TableIdentifier> identifiers = options.processIdentifiersInput();
+    Assertions.assertThat(identifiers)
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("abc. def"),
+            TableIdentifier.parse("abc 123"),
+            TableIdentifier.parse("xyz%n123"));
+
+    // with duplicate entries
+    identifierFile = tempDir.resolve("ids3.txt");
+    String[] ids = {"abc.def", "xx.yy", "abc.def", "abc.def", "abc.def ", " xx.yy"};
+    Files.writeString(identifierFile, String.join(System.lineSeparator(), ids));
+    options = new IdentifierOptions();
+    options.identifiersFromFile = identifierFile.toAbsolutePath().toString();
+    identifiers = options.processIdentifiersInput();
+    Assertions.assertThat(identifiers)
+        .containsExactlyInAnyOrder(
+            TableIdentifier.parse("abc.def"), TableIdentifier.parse("xx.yy"));
   }
 }

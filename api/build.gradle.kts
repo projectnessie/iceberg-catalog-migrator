@@ -26,14 +26,13 @@ dependencies {
   implementation(libs.slf4j)
   implementation(libs.iceberg.spark.runtime)
 
-  annotationProcessor(libs.immutables)
-  compileOnly(libs.immutables)
+  compileOnly(libs.immutables.value.annotations)
+  annotationProcessor(libs.immutables.value.processor)
 
   testRuntimeOnly(libs.logback.classic)
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
-  testImplementation(libs.junit.vintage.engine)
   testImplementation(libs.assertj)
   testImplementation(libs.hadoop.common)
   testImplementation(libs.logcaptor)
@@ -44,6 +43,9 @@ dependencies {
   testImplementation(
     "org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests"
   )
+  // this junit4 dependency is needed for above Iceberg's TestHiveMetastore
+  testRuntimeOnly("junit:junit:4.12")
+
   testImplementation("org.apache.hive:hive-metastore:${libs.versions.hive.get()}") {
     // these are taken from iceberg repo configurations
     exclude("org.apache.avro", "avro")

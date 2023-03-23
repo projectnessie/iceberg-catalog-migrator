@@ -22,10 +22,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.Test;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
@@ -34,8 +31,8 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
-    catalog1 = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "hadoop");
-    catalog2 = HiveMetaStoreRunner.hiveCatalog();
+    sourceCatalog = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "hadoop");
+    targetCatalog = HiveMetaStoreRunner.hiveCatalog();
 
     createNamespaces();
   }
@@ -46,26 +43,16 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
     HiveMetaStoreRunner.stopMetastore();
   }
 
-  // disable large table test for IT to save CI time. It will be executed only for UT.
-  @Override
-  @Disabled
-  public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
-    super.testRegisterLargeNumberOfTables(deleteSourceTables);
-  }
-
-  @Order(8)
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  public void testRegisterWithNewNestedNamespace(boolean deleteSourceTables) {
-    // catalog2 doesn't have a namespace "a.b.c"
+  @Test
+  public void testRegisterWithNewNestedNamespace() {
     Namespace namespace = Namespace.of("a.b.c");
-    String tableName = "tbl5_" + deleteSourceTables;
-    TableIdentifier tableIdentifier = TableIdentifier.parse("a.b.c." + tableName);
-    ((SupportsNamespaces) catalog1).createNamespace(namespace);
-    catalog1.createTable(tableIdentifier, schema);
+    TableIdentifier tableIdentifier = TableIdentifier.parse("a.b.c.tbl5");
+    // create namespace "a.b.c" only in source catalog
+    ((SupportsNamespaces) sourceCatalog).createNamespace(namespace);
+    sourceCatalog.createTable(tableIdentifier, schema);
 
     CatalogMigrationResult result =
-        catalogMigratorWithDefaultArgs(deleteSourceTables)
+        catalogMigratorWithDefaultArgs(false)
             .registerTables(Collections.singletonList(tableIdentifier))
             .result();
 
@@ -75,7 +62,7 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
         .containsExactly(tableIdentifier);
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    catalog1.dropTable(tableIdentifier);
-    ((SupportsNamespaces) catalog1).dropNamespace(namespace);
+    sourceCatalog.dropTable(tableIdentifier);
+    ((SupportsNamespaces) sourceCatalog).dropNamespace(namespace);
   }
 }

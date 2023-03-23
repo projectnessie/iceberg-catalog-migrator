@@ -54,8 +54,6 @@ fun Project.libsRequiredVersion(name: String): String {
   return reqVer
 }
 
-fun Project.testLogLevel() = System.getProperty("test.log.level", "WARN")
-
 fun Project.applyShadowJar() {
   plugins.apply(ShadowPlugin::class.java)
 

@@ -16,13 +16,13 @@
 package org.projectnessie.tools.catalog.migration.api;
 
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.List;
 import org.apache.iceberg.BaseMetastoreCatalog;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -66,24 +66,30 @@ public class UnsupportedNamespaceTest {
       public void renameTable(TableIdentifier from, TableIdentifier to) {}
     }
 
-    Catalog catalog1 = new TestCatalog();
-    Catalog catalog2 = new TestCatalog();
+    Catalog sourceCatalog = new TestCatalog();
+    Catalog targetCatalog = new TestCatalog();
+
+    Assertions.assertThatThrownBy(
+            () ->
+                ImmutableCatalogMigrator.builder()
+                    .sourceCatalog(sourceCatalog)
+                    .targetCatalog(targetCatalog)
+                    .deleteEntriesFromSourceCatalog(false)
+                    .build())
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining(
+            "target catalog TestCatalog{} doesn't implement SupportsNamespaces to create missing namespaces.");
 
     CatalogMigrator catalogMigrator =
         ImmutableCatalogMigrator.builder()
-            .sourceCatalog(catalog1)
-            .targetCatalog(catalog2)
-            .deleteEntriesFromSourceCatalog(true)
+            .sourceCatalog(sourceCatalog)
+            .targetCatalog(new HadoopCatalog())
+            .deleteEntriesFromSourceCatalog(false)
             .build();
 
     Assertions.assertThatThrownBy(() -> catalogMigrator.getMatchingTableIdentifiers(null))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining(
             "source catalog TestCatalog{} doesn't implement SupportsNamespaces to list all namespaces.");
-
-    Assertions.assertThatThrownBy(() -> catalogMigrator.registerTables(Collections.emptyList()))
-        .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining(
-            "target catalog TestCatalog{} doesn't implement SupportsNamespaces to create missing namespaces.");
   }
 }

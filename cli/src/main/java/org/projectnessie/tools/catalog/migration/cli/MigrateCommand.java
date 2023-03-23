@@ -16,7 +16,6 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
 import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
 import org.slf4j.Logger;
@@ -37,10 +36,13 @@ import picocli.CommandLine;
             + "catalog.")
 public class MigrateCommand extends BaseRegisterCommand {
 
-  private final Logger consoleLog = LoggerFactory.getLogger("console-log");
+  private static final String newLine = System.lineSeparator();
+  private static final Logger consoleLog = LoggerFactory.getLogger("console-log");
 
   @Override
-  protected CatalogMigrator catalogMigrator(Catalog sourceCatalog, Catalog targetCatalog) {
+  protected CatalogMigrator catalogMigrator(
+      Catalog sourceCatalog, Catalog targetCatalog, boolean enableStackTrace) {
+
     return ImmutableCatalogMigrator.builder()
         .sourceCatalog(sourceCatalog)
         .targetCatalog(targetCatalog)
@@ -50,15 +52,34 @@ public class MigrateCommand extends BaseRegisterCommand {
   }
 
   @Override
-  protected boolean canProceed(Catalog sourceCatalog) {
-    if (sourceCatalog instanceof HadoopCatalog) {
-      consoleLog.warn(
-          "Source catalog type is HADOOP and it doesn't support dropping tables just from "
-              + "catalog. {}Avoid operating the migrated tables from the source catalog after migration. "
-              + "Use the tables from target catalog.",
-          System.lineSeparator());
+  public Integer call() {
+    if (sourceCatalogOptions.type == CatalogMigrationUtil.CatalogType.HADOOP) {
+      consoleLog.error(
+          "Source catalog is a Hadoop catalog and it doesn't support deleting the table entries just from the catalog. "
+              + "Please use 'register' command instead.");
+      return 2;
     }
-    return PromptUtil.proceedForMigration();
+    return super.call();
+  }
+
+  @Override
+  protected boolean canProceed(Catalog sourceCatalog) {
+    consoleLog.warn(
+        "{}"
+            + "\ta) Executing catalog migration when the source catalog has some in-progress commits "
+            + "{}\tcan lead to a data loss as the in-progress commits will not be considered for migration. "
+            + "{}\tSo, while using this tool please make sure there are no in-progress commits for the source "
+            + "catalog.{}"
+            + "{}"
+            + "\tb) After the migration, successfully migrated tables will be deleted from the source catalog "
+            + "{}\tand can only be accessed from the target catalog.",
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine,
+        newLine);
+    return proceed();
   }
 
   @Override
