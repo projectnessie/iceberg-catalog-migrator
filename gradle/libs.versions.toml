@@ -1,7 +1,8 @@
 [versions]
 assertj = "3.24.2"
-aws = "1.12.415"
+aws = "2.20.18"
 checkstyle = "10.8.0"
+ecs = "3.3.2"
 errorprone = "2.18.0"
 errorproneSlf4j = "0.1.18"
 googleJavaFormat = "1.16.0"
@@ -23,15 +24,20 @@ slf4j = "1.7.36"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
-aws-sdk-dynamo = { module = "com.amazonaws:aws-java-sdk-dynamodb", version.ref = "aws" }
-aws-sdk-glue = { module = "com.amazonaws:aws-java-sdk-glue", version.ref = "aws" }
-aws-sdk-kms = { module = "com.amazonaws:aws-java-sdk-kms", version.ref = "aws" }
-aws-sdk-sts = { module = "com.amazonaws:aws-java-sdk-sts", version.ref = "aws" }
-aws-sdk-s3 = { module = "com.amazonaws:aws-java-sdk-s3", version.ref = "aws" }
+aws-sdk-apache-client = { module = "software.amazon.awssdk:apache-client", version.ref = "aws" }
+aws-sdk-auth = { module = "software.amazon.awssdk:auth", version.ref = "aws" }
+aws-sdk-dynamo = { module = "software.amazon.awssdk:dynamodb", version.ref = "aws" }
+aws-sdk-glue = { module = "software.amazon.awssdk:glue", version.ref = "aws" }
+aws-sdk-kms = { module = "software.amazon.awssdk:kms", version.ref = "aws" }
+aws-sdk-lakeformation = { module = "software.amazon.awssdk:lakeformation", version.ref = "aws" }
+aws-sdk-sts = { module = "software.amazon.awssdk:sts", version.ref = "aws" }
+aws-sdk-s3 = { module = "software.amazon.awssdk:s3", version.ref = "aws" }
+aws-sdk-url-connection-client = { module = "software.amazon.awssdk:url-connection-client", version.ref = "aws" }
 checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checkstyle" }
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 errorprone-slf4j = { module = "jp.skypencil.errorprone.slf4j:errorprone-slf4j", version.ref = "errorproneSlf4j" }
+ecs-bundle = { module = "com.emc.ecs:object-client-bundle", version.ref = "ecs" }
 findbugs-annotations = { module = "com.google.code.findbugs:annotations", version = "3.0.1" }
 findbugs-jsr305 = { module = "com.google.code.findbugs:jsr305", version = "3.0.2" }
 google-java-format = { module = "com.google.googlejavaformat:google-java-format", version.ref = "googleJavaFormat" }

@@ -29,19 +29,62 @@ applyShadowJar()
 
 dependencies {
   implementation(project(":iceberg-catalog-migrator-api"))
+  implementation(libs.guava)
   implementation(libs.slf4j)
   runtimeOnly(libs.logback.classic)
   implementation(libs.picocli)
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.iceberg.dell)
   implementation(libs.hadoop.aws) { exclude("com.amazonaws", "aws-java-sdk-bundle") }
-  implementation(libs.hadoop.common)
+  implementation(libs.hadoop.common) {
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("javax.servlet", "servlet-api")
+    exclude("com.google.code.gson", "gson")
+    exclude("commons-beanutils")
+  }
   // AWS dependencies based on https://iceberg.apache.org/docs/latest/aws/#enabling-aws-integration
-  implementation(libs.aws.sdk.glue)
-  implementation(libs.aws.sdk.s3)
-  implementation(libs.aws.sdk.dynamo)
-  implementation(libs.aws.sdk.kms)
-  implementation(libs.aws.sdk.sts)
+  runtimeOnly(libs.aws.sdk.apache.client)
+  runtimeOnly(libs.aws.sdk.auth)
+  runtimeOnly(libs.aws.sdk.glue)
+  runtimeOnly(libs.aws.sdk.s3)
+  runtimeOnly(libs.aws.sdk.dynamo)
+  runtimeOnly(libs.aws.sdk.kms)
+  runtimeOnly(libs.aws.sdk.lakeformation)
+  runtimeOnly(libs.aws.sdk.sts)
+  runtimeOnly(libs.aws.sdk.url.connection.client)
+  runtimeOnly(libs.ecs.bundle)
+
+  // needed for Hive catalog
+  runtimeOnly("org.apache.hive:hive-metastore:${libs.versions.hive.get()}") {
+    // these are taken from iceberg repo configurations
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("org.pentaho") // missing dependency
+    exclude("org.apache.hbase")
+    exclude("org.apache.logging.log4j")
+    exclude("co.cask.tephra")
+    exclude("com.google.code.findbugs", "jsr305")
+    exclude("org.eclipse.jetty.aggregate", "jetty-all")
+    exclude("org.eclipse.jetty.orbit", "javax.servlet")
+    exclude("org.apache.parquet", "parquet-hadoop-bundle")
+    exclude("com.tdunning", "json")
+    exclude("javax.transaction", "transaction-api")
+    exclude("com.zaxxer", "HikariCP")
+  }
+  runtimeOnly("org.apache.hive:hive-exec:${libs.versions.hive.get()}:core") {
+    // these are taken from iceberg repo configurations
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("org.pentaho") // missing dependency
+    exclude("org.apache.hive", "hive-llap-tez")
+    exclude("org.apache.logging.log4j")
+    exclude("com.google.protobuf", "protobuf-java")
+    exclude("org.apache.calcite")
+    exclude("org.apache.calcite.avatica")
+    exclude("com.google.code.findbugs", "jsr305")
+  }
+  runtimeOnly("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
 
   testImplementation(libs.junit.jupiter.params)
   testImplementation(libs.junit.jupiter.api)
@@ -108,7 +151,7 @@ val processResources =
 
 val mainClassName = "org.projectnessie.tools.catalog.migration.cli.CatalogMigrationCLI"
 
-val shadowJar = tasks.named<ShadowJar>("shadowJar")
+val shadowJar = tasks.named<ShadowJar>("shadowJar") { isZip64 = true }
 
 val unixExecutable by
   tasks.registering {

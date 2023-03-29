@@ -18,6 +18,7 @@ package org.projectnessie.tools.catalog.migration.cli;
 import com.google.common.base.Preconditions;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.aws.dynamodb.DynamoDbCatalog;
 import org.apache.iceberg.aws.glue.GlueCatalog;
 import org.apache.iceberg.catalog.Catalog;
@@ -56,7 +57,7 @@ public final class CatalogMigrationUtil {
     if (hadoopConf != null) {
       hadoopConf.forEach(catalogConf::set);
     }
-    return org.apache.iceberg.CatalogUtil.loadCatalog(
+    return CatalogUtil.loadCatalog(
         catalogImpl(catalogType, customCatalogImpl), catalogName, catalogProperties, catalogConf);
   }
 
