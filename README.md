@@ -153,6 +153,46 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --identifiers foo.t1,foo.t2
 ```
 
+## Migrate all tables from GLUE catalog to Arctic catalog (main branch)
+```shell
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
+--source-catalog-type GLUE \
+--source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
+--target-catalog-type NESSIE \
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
+--target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+```
+
+## Migrate all tables from HIVE catalog to Arctic catalog (main branch)
+```shell
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
+--source-catalog-type HIVE \
+--source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
+--target-catalog-type NESSIE \
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
+--target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+```
+
+## Migrate all tables from DYNAMODB catalog to Arctic catalog (main branch)
+```shell
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
+--source-catalog-type DYNAMODB \
+--source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
+--target-catalog-type NESSIE \
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
+--target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+```
+
+## Migrate all tables from JDBC catalog to Arctic catalog (main branch)
+```shell
+java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \ 
+--source-catalog-type JDBC \
+--source-catalog-properties warehouse=/tmp/warehouseJdbc,jdbc.user=root,jdbc.password=pass,uri=jdbc:mysql://localhost:3306/db1,name=catalogName \
+--target-catalog-type NESSIE \
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
+--target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+```
+
 # Scenarios
 ## A. User need to try out new catalog
 Users can use a new catalog by creating a fresh table to test the new catalog's capabilities, without requiring a tool to migrate the catalog.

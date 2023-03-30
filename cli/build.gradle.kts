@@ -36,13 +36,8 @@ dependencies {
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.iceberg.dell)
   implementation(libs.hadoop.aws) { exclude("com.amazonaws", "aws-java-sdk-bundle") }
-  implementation(libs.hadoop.common) {
-    exclude("org.apache.avro", "avro")
-    exclude("org.slf4j", "slf4j-log4j12")
-    exclude("javax.servlet", "servlet-api")
-    exclude("com.google.code.gson", "gson")
-    exclude("commons-beanutils")
-  }
+  runtimeOnly(libs.ecs.bundle)
+  runtimeOnly(libs.mysql.driver)
   // AWS dependencies based on https://iceberg.apache.org/docs/latest/aws/#enabling-aws-integration
   runtimeOnly(libs.aws.sdk.apache.client)
   runtimeOnly(libs.aws.sdk.auth)
@@ -53,7 +48,6 @@ dependencies {
   runtimeOnly(libs.aws.sdk.lakeformation)
   runtimeOnly(libs.aws.sdk.sts)
   runtimeOnly(libs.aws.sdk.url.connection.client)
-  runtimeOnly(libs.ecs.bundle)
 
   // needed for Hive catalog
   runtimeOnly("org.apache.hive:hive-metastore:${libs.versions.hive.get()}") {

@@ -57,6 +57,12 @@ public final class CatalogMigrationUtil {
     if (hadoopConf != null) {
       hadoopConf.forEach(catalogConf::set);
     }
+    if (catalogProperties.get("name") != null) {
+      // Some catalogs like jdbc stores the catalog name from the client when the namespace or table
+      // is created.
+      // Hence, when accessing the tables from another client, catalog name should match.
+      catalogName = catalogProperties.get("name");
+    }
     return CatalogUtil.loadCatalog(
         catalogImpl(catalogType, customCatalogImpl), catalogName, catalogProperties, catalogConf);
   }

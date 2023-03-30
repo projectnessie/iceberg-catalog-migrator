@@ -1,14 +1,14 @@
 [versions]
 assertj = "3.24.2"
-aws = "2.20.18"
+aws = "2.20.18" # this is in mapping with iceberg repo.
 checkstyle = "10.8.0"
 ecs = "3.3.2"
 errorprone = "2.18.0"
 errorproneSlf4j = "0.1.18"
 googleJavaFormat = "1.16.0"
 guava = "31.1-jre"
-hadoop = "3.2.4"
-hive = "2.3.8" # this is in mapping with iceberg repo. Later versions have junit depedency problem
+hadoop = "2.7.3" # this is in mapping with iceberg repo.
+hive = "2.3.8" # this is in mapping with iceberg repo.
 iceberg = "1.2.0"
 immutables = "2.9.3"
 jacoco = "0.8.8"
@@ -16,6 +16,7 @@ jandex = "3.0.5"
 junit = "5.9.2"
 logback = "1.4.5"
 logcaptor = "2.8.0"
+mysqlDriver = "8.0.32"
 nessie = "0.52.3"
 nessieRunner = "0.29.0"
 picocli = "4.7.1"
@@ -59,6 +60,7 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logcaptor = { module = "io.github.hakky54:logcaptor", version.ref = "logcaptor" }
+mysql-driver = { module = "mysql:mysql-connector-java", version.ref = "mysqlDriver" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
 

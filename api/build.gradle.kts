@@ -34,7 +34,13 @@ dependencies {
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
   testImplementation(libs.assertj)
-  testImplementation(libs.hadoop.common)
+  testImplementation(libs.hadoop.common) {
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("javax.servlet", "servlet-api")
+    exclude("com.google.code.gson", "gson")
+    exclude("commons-beanutils")
+  }
   testImplementation(libs.logcaptor)
 
   testImplementation(project(":iceberg-catalog-migrator-api-test"))

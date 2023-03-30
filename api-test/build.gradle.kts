@@ -22,7 +22,13 @@ plugins {
 
 dependencies {
   implementation(libs.guava)
-  implementation(libs.hadoop.common)
+  implementation(libs.hadoop.common) {
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("javax.servlet", "servlet-api")
+    exclude("com.google.code.gson", "gson")
+    exclude("commons-beanutils")
+  }
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.junit.jupiter.api)
   implementation("org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests")
