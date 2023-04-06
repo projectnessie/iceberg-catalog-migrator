@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catalog.migration.cli;
+package org.projectnessie.tools.catalog.migration.api;
 
 import com.google.common.base.Preconditions;
 import java.util.Map;
@@ -45,7 +45,7 @@ public final class CatalogMigrationUtil {
     REST
   }
 
-  static Catalog buildCatalog(
+  public static Catalog buildCatalog(
       Map<String, String> catalogProperties,
       CatalogType catalogType,
       String catalogName,

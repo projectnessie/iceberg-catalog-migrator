@@ -25,6 +25,14 @@ dependencies {
   implementation(libs.guava)
   implementation(libs.slf4j)
   implementation(libs.iceberg.spark.runtime)
+  implementation(libs.iceberg.dell)
+  implementation(libs.hadoop.common) {
+    exclude("org.apache.avro", "avro")
+    exclude("org.slf4j", "slf4j-log4j12")
+    exclude("javax.servlet", "servlet-api")
+    exclude("com.google.code.gson", "gson")
+    exclude("commons-beanutils")
+  }
 
   compileOnly(libs.immutables.value.annotations)
   annotationProcessor(libs.immutables.value.processor)
@@ -34,13 +42,6 @@ dependencies {
   testImplementation(libs.junit.jupiter.api)
   testImplementation(libs.junit.jupiter.engine)
   testImplementation(libs.assertj)
-  testImplementation(libs.hadoop.common) {
-    exclude("org.apache.avro", "avro")
-    exclude("org.slf4j", "slf4j-log4j12")
-    exclude("javax.servlet", "servlet-api")
-    exclude("com.google.code.gson", "gson")
-    exclude("commons-beanutils")
-  }
   testImplementation(libs.logcaptor)
 
   testImplementation(project(":iceberg-catalog-migrator-api-test"))

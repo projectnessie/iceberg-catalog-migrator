@@ -16,7 +16,6 @@
 package org.projectnessie.tools.catalog.migration.api;
 
 import java.util.Collections;
-import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.assertj.core.api.Assertions;
@@ -31,7 +30,7 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
-    sourceCatalog = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "hadoop");
+    initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
     targetCatalog = HiveMetaStoreRunner.hiveCatalog();
 
     createNamespaces();
@@ -45,10 +44,9 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
 
   @Test
   public void testRegisterWithNewNestedNamespace() {
-    Namespace namespace = Namespace.of("a.b.c");
-    TableIdentifier tableIdentifier = TableIdentifier.parse("a.b.c.tbl5");
+    TableIdentifier tableIdentifier = TableIdentifier.of(NS_A_B_C, "tbl5");
     // create namespace "a.b.c" only in source catalog
-    ((SupportsNamespaces) sourceCatalog).createNamespace(namespace);
+    ((SupportsNamespaces) sourceCatalog).createNamespace(NS_A_B_C);
     sourceCatalog.createTable(tableIdentifier, schema);
 
     CatalogMigrationResult result =
@@ -63,6 +61,6 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     sourceCatalog.dropTable(tableIdentifier);
-    ((SupportsNamespaces) sourceCatalog).dropNamespace(namespace);
+    ((SupportsNamespaces) sourceCatalog).dropNamespace(NS_A_B_C);
   }
 }

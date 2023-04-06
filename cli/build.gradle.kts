@@ -34,7 +34,6 @@ dependencies {
   runtimeOnly(libs.logback.classic)
   implementation(libs.picocli)
   implementation(libs.iceberg.spark.runtime)
-  implementation(libs.iceberg.dell)
   implementation(libs.hadoop.aws) { exclude("com.amazonaws", "aws-java-sdk-bundle") }
   runtimeOnly(libs.ecs.bundle)
   runtimeOnly(libs.mysql.driver)
@@ -93,7 +92,7 @@ dependencies {
     "org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests"
   )
   // this junit4 dependency is needed for above Iceberg's TestHiveMetastore
-  testRuntimeOnly("junit:junit:4.12")
+  testRuntimeOnly("junit:junit:4.13.2")
 
   testImplementation("org.apache.hive:hive-metastore:${libs.versions.hive.get()}") {
     // these are taken from iceberg repo configurations

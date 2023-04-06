@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -75,14 +76,16 @@ public class IdentifierOptions {
                 .map(String::trim)
                 .filter(string -> !string.isEmpty())
                 .map(TableIdentifier::parse)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
       } catch (IOException e) {
         throw new UncheckedIOException(
             String.format("Failed to read the file: %s", identifiersFromFile), e);
       }
     } else if (!identifiers.isEmpty()) {
       tableIdentifiers =
-          identifiers.stream().map(TableIdentifier::parse).collect(Collectors.toSet());
+          identifiers.stream()
+              .map(TableIdentifier::parse)
+              .collect(Collectors.toCollection(LinkedHashSet::new));
     } else {
       tableIdentifiers = Collections.emptySet();
     }

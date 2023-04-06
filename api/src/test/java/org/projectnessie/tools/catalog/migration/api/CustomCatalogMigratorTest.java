@@ -73,11 +73,7 @@ public class CustomCatalogMigratorTest extends AbstractTest {
         catalogMigrator.registerTables(catalogMigrator.getMatchingTableIdentifiers(null)).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToRegisterTableIdentifiers())
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("foo.tbl1"),
-            TableIdentifier.parse("foo.tbl2"),
-            TableIdentifier.parse("bar.tbl3"),
-            TableIdentifier.parse("bar.tbl4"));
+        .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2, BAR_TBL3, BAR_TBL4);
   }
 
   private static Catalog createCustomCatalog(String warehousePath, String name) {

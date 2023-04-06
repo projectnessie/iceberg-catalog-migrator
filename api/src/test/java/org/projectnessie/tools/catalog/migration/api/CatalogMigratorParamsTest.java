@@ -18,7 +18,6 @@ package org.projectnessie.tools.catalog.migration.api;
 import java.nio.file.Path;
 import java.util.Collections;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -38,17 +37,6 @@ public class CatalogMigratorParamsTest {
   public void testInvalidArgs() {
     Catalog sourceCatalog = new HadoopCatalog();
     Catalog targetCatalog = new HadoopCatalog();
-
-    Assertions.assertThatThrownBy(
-            () ->
-                ImmutableCatalogMigrator.builder()
-                    .sourceCatalog(targetCatalog) // source-catalog is same as target catalog
-                    .targetCatalog(targetCatalog)
-                    .deleteEntriesFromSourceCatalog(true)
-                    .build()
-                    .registerTables(Collections.singletonList(TableIdentifier.parse("foo.abc"))))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("target catalog is same as source catalog");
 
     Assertions.assertThatThrownBy(
             () ->

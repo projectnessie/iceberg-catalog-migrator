@@ -15,22 +15,19 @@
  */
 package org.projectnessie.tools.catalog.migration.api;
 
+import java.util.Collections;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHiveToNessieCatalogMigrator extends AbstractTestCatalogMigrator {
 
-  protected static final int NESSIE_PORT = Integer.getInteger("quarkus.http.test-port", 19121);
-
-  protected static String nessieUri = String.format("http://localhost:%d/api/v1", NESSIE_PORT);
-
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
     sourceCatalog = HiveMetaStoreRunner.hiveCatalog();
-    targetCatalog = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
+    initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
 
     createNamespaces();
   }

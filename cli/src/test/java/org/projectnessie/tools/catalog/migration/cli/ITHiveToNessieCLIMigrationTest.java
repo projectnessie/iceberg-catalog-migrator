@@ -15,38 +15,28 @@
  */
 package org.projectnessie.tools.catalog.migration.cli;
 
+import java.util.Collections;
 import java.util.stream.IntStream;
-import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
 
-  protected static final int NESSIE_PORT = Integer.getInteger("quarkus.http.test-port", 19121);
-
-  protected static String nessieUri = String.format("http://localhost:%d/api/v1", NESSIE_PORT);
-
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
-    sourceCatalogProperties =
-        "warehouse="
-            + warehouse1.toAbsolutePath()
-            + ",uri="
-            + HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris");
-    targetCatalogProperties =
-        "uri=" + nessieUri + ",ref=main,warehouse=" + warehouse2.toAbsolutePath();
 
-    sourceCatalog = HiveMetaStoreRunner.hiveCatalog();
-    targetCatalog = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
-
-    sourceCatalogType = catalogType(sourceCatalog);
-    targetCatalogType = catalogType(targetCatalog);
+    initializeSourceCatalog(
+        CatalogMigrationUtil.CatalogType.HIVE,
+        Collections.singletonMap(
+            "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
+    initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
 
     createNamespaces();
   }
@@ -62,42 +52,35 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
   @ValueSource(booleans = {true, false})
   public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
     validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
+
+    String operation = deleteSourceTables ? "migration" : "registration";
+    String operated = deleteSourceTables ? "migrated" : "registered";
+
     // additionally create 240 tables along with 4 tables created in beforeEach()
     IntStream.range(0, 240)
-        .forEach(
-            val ->
-                sourceCatalog.createTable(
-                    TableIdentifier.of(Namespace.of("foo"), "tblx" + val), schema));
+        .forEach(val -> sourceCatalog.createTable(TableIdentifier.of(FOO, "tblx" + val), schema));
 
-    RunCLI run = runCLI(deleteSourceTables, registerAllTablesArgs());
+    // register or migrate all the tables
+    RunCLI run = runCLI(deleteSourceTables, defaultArgs());
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
-    String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 244 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrated" : "registered";
-    Assertions.assertThat(run.getOut())
+        .contains(String.format("Identified 244 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nSuccessfully %s 244 tables from %s catalog to" + " %s catalog.",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
-
-    operation = deleteSourceTables ? "migration" : "registration";
-    // validate intermediate output
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Attempted %s for 100 tables out of 244 tables.", operation));
-    Assertions.assertThat(run.getOut())
+                operated, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operated))
+        // validate intermediate output
+        .contains(String.format("Attempted %s for 100 tables out of 244 tables.", operation))
         .contains(String.format("Attempted %s for 200 tables out of 244 tables.", operation));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
-    targetCatalog.loadTable(TableIdentifier.parse("bar.tbl3")).refresh();
+    targetCatalog.loadTable(BAR_TBL3).refresh();
 
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo"))).hasSize(242);
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(targetCatalog.listTables(FOO)).hasSize(242);
+    Assertions.assertThat(targetCatalog.listTables(BAR))
+        .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
   }
 }

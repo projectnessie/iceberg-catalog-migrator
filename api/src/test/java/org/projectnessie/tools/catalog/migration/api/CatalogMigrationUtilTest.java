@@ -13,7 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.projectnessie.tools.catalog.migration.cli;
+package org.projectnessie.tools.catalog.migration.api;
+
+import static org.projectnessie.tools.catalog.migration.api.test.AbstractTest.FOO_TBL1;
 
 import java.nio.file.Path;
 import java.util.Collections;
@@ -23,7 +25,6 @@ import java.util.stream.Stream;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.hive.HiveCatalog;
 import org.apache.iceberg.nessie.NessieCatalog;
@@ -109,9 +110,9 @@ public class CatalogMigrationUtilTest {
         new Schema(
             Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get()))
                 .fields());
-    Table table = catalog.createTable(TableIdentifier.parse("foo.tbl1"), schema);
+    Table table = catalog.createTable(FOO_TBL1, schema);
     Assertions.assertThat(table.location()).contains(logDir.toAbsolutePath().toString());
-    catalog.dropTable(TableIdentifier.parse("foo.tbl1"));
+    catalog.dropTable(FOO_TBL1);
   }
 
   @Test

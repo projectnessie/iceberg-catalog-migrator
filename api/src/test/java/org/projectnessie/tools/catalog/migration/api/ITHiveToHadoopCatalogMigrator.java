@@ -15,6 +15,7 @@
  */
 package org.projectnessie.tools.catalog.migration.api;
 
+import java.util.Collections;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
@@ -25,8 +26,11 @@ public class ITHiveToHadoopCatalogMigrator extends AbstractTestCatalogMigrator {
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
-    sourceCatalog = HiveMetaStoreRunner.hiveCatalog();
-    targetCatalog = createHadoopCatalog(warehouse2.toAbsolutePath().toString(), "hadoop");
+    initializeSourceCatalog(
+        CatalogMigrationUtil.CatalogType.HIVE,
+        Collections.singletonMap(
+            "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
+    initializeTargetCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
 
     createNamespaces();
   }

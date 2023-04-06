@@ -32,8 +32,8 @@ public class HadoopCatalogMigratorTest extends AbstractTestCatalogMigrator {
 
   @BeforeAll
   protected static void setup() {
-    sourceCatalog = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "sourceCatalog");
-    targetCatalog = createHadoopCatalog(warehouse2.toAbsolutePath().toString(), "targetCatalog");
+    initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
+    initializeTargetCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
 
     createNamespaces();
   }
@@ -45,23 +45,11 @@ public class HadoopCatalogMigratorTest extends AbstractTestCatalogMigrator {
 
   @Test
   public void testRegisterWithNewNestedNamespaces() {
-    List<Namespace> namespaceList =
-        Arrays.asList(
-            Namespace.of("ns1"),
-            Namespace.of("ns2"),
-            Namespace.of("ns3"),
-            Namespace.of("ns1", "ns2"),
-            Namespace.of("ns1", "ns3"),
-            Namespace.of("ns1", "ns2", "ns3"));
+    List<Namespace> namespaceList = Arrays.asList(NS1, NS2, NS3, NS1_NS2, NS1_NS3, NS1_NS2_NS3);
+
     List<TableIdentifier> identifiers =
-        Arrays.asList(
-            TableIdentifier.parse("tblz"),
-            TableIdentifier.parse("ns1.tblz"),
-            TableIdentifier.parse("ns2.tblz"),
-            TableIdentifier.parse("ns3.tblz"),
-            TableIdentifier.of(Namespace.of("ns1", "ns2"), "tblz"),
-            TableIdentifier.of(Namespace.of("ns1", "ns3"), "tblz"),
-            TableIdentifier.of(Namespace.of("ns1", "ns2", "ns3"), "tblz"));
+        Arrays.asList(TBL, NS1_TBL, NS2_TBL, NS3_TBL, NS1_NS2_TBL, NS1_NS3_TBL, NS1_NS2_NS3_TBL);
+
     namespaceList.forEach(((SupportsNamespaces) sourceCatalog)::createNamespace);
     identifiers.forEach(identifier -> sourceCatalog.createTable(identifier, schema));
 
@@ -85,12 +73,8 @@ public class HadoopCatalogMigratorTest extends AbstractTestCatalogMigrator {
 
     // manually register the table from default namespace
     catalogMigrator = catalogMigratorWithDefaultArgs(false);
-    result =
-        catalogMigrator
-            .registerTables(Collections.singletonList(TableIdentifier.of("tblz")))
-            .result();
-    Assertions.assertThat(result.registeredTableIdentifiers())
-        .containsExactly(TableIdentifier.of("tblz"));
+    result = catalogMigrator.registerTables(Collections.singletonList(TBL)).result();
+    Assertions.assertThat(result.registeredTableIdentifiers()).containsExactly(TBL);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
@@ -111,13 +95,7 @@ public class HadoopCatalogMigratorTest extends AbstractTestCatalogMigrator {
             .build();
 
     List<Namespace> namespaceList =
-        Arrays.asList(
-            Namespace.of("a"),
-            Namespace.of("a", "b"),
-            Namespace.of("a", "b", "c"),
-            Namespace.of("a", "b", "c", "d"),
-            Namespace.of("a", "b", "c", "d", "e"),
-            Namespace.of("a", "c"));
+        Arrays.asList(NS_A, NS_A_B, NS_A_B_C, NS_A_B_C_D, NS_A_B_C_D_E, NS_A_C);
     catalogMigrator.createNamespacesIfNotExistOnTargetCatalog(
         namespaceList.get(4)); // try creating "a.b.c.d.e"
     catalogMigrator.createNamespacesIfNotExistOnTargetCatalog(

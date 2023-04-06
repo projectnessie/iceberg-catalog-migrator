@@ -15,6 +15,7 @@
  */
 package org.projectnessie.tools.catalog.migration.api;
 
+import java.util.Collections;
 import java.util.Set;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.assertj.core.api.Assertions;
@@ -25,15 +26,11 @@ import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITNessieToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
 
-  protected static final int NESSIE_PORT = Integer.getInteger("quarkus.http.test-port", 19121);
-
-  protected static String nessieUri = String.format("http://localhost:%d/api/v1", NESSIE_PORT);
-
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
-    sourceCatalog = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
+    initializeSourceCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
     targetCatalog = HiveMetaStoreRunner.hiveCatalog();
 
     createNamespaces();
@@ -47,22 +44,20 @@ public class ITNessieToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
 
   @Test
   public void testRegisterWithDefaultNamespace() {
-    sourceCatalog.createTable(TableIdentifier.of("tblx"), schema);
+    sourceCatalog.createTable(TBL, schema);
 
     CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(false);
     // should also include table from default namespace
     Set<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
-    Assertions.assertThat(matchingTableIdentifiers).contains(TableIdentifier.parse("tblx"));
+    Assertions.assertThat(matchingTableIdentifiers).contains(TBL);
 
     CatalogMigrationResult result =
         catalogMigrator.registerTables(matchingTableIdentifiers).result();
     // hive will not support default namespace (namespace with level = 0). Hence, register will
     // fail.
-    Assertions.assertThat(result.registeredTableIdentifiers())
-        .doesNotContain(TableIdentifier.parse("tblx"));
-    Assertions.assertThat(result.failedToRegisterTableIdentifiers())
-        .containsExactly(TableIdentifier.parse("tblx"));
+    Assertions.assertThat(result.registeredTableIdentifiers()).doesNotContain(TBL);
+    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).containsExactly(TBL);
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
   }
 }

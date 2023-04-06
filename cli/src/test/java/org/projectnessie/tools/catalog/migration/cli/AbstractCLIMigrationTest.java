@@ -18,27 +18,20 @@ package org.projectnessie.tools.catalog.migration.cli;
 import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.DRY_RUN_FILE;
 import static org.projectnessie.tools.catalog.migration.cli.BaseRegisterCommand.FAILED_IDENTIFIERS_FILE;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import nl.altindag.log.LogCaptor;
 import nl.altindag.log.model.LogEvent;
-import org.apache.iceberg.aws.dynamodb.DynamoDbCatalog;
-import org.apache.iceberg.aws.glue.GlueCatalog;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.dell.ecs.EcsCatalog;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
-import org.apache.iceberg.hive.HiveCatalog;
-import org.apache.iceberg.jdbc.JdbcCatalog;
-import org.apache.iceberg.nessie.NessieCatalog;
-import org.apache.iceberg.rest.RESTCatalog;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
@@ -48,17 +41,13 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
 import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
 
 public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
-  protected static @TempDir Path warehouse1;
-
-  protected static @TempDir Path warehouse2;
-
   protected static @TempDir Path outputDir;
-
   protected static Path dryRunFile;
   protected static Path failedIdentifiersFile;
 
@@ -67,6 +56,54 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
   protected static String sourceCatalogType;
   protected static String targetCatalogType;
+
+  protected static void initializeSourceCatalog(
+      CatalogMigrationUtil.CatalogType catalogType, Map<String, String> additionalProp) {
+    initializeCatalog(true, catalogType, additionalProp);
+  }
+
+  protected static void initializeTargetCatalog(
+      CatalogMigrationUtil.CatalogType catalogType, Map<String, String> additionalProp) {
+    initializeCatalog(false, catalogType, additionalProp);
+  }
+
+  private static void initializeCatalog(
+      boolean isSourceCatalog,
+      CatalogMigrationUtil.CatalogType catalogType,
+      Map<String, String> additionalProp) {
+    Map<String, String> properties;
+    switch (catalogType) {
+      case HADOOP:
+        properties = hadoopCatalogProperties(isSourceCatalog);
+        break;
+      case NESSIE:
+        properties = nessieCatalogProperties(isSourceCatalog);
+        break;
+      case HIVE:
+        properties = hiveCatalogProperties(isSourceCatalog, additionalProp);
+        break;
+      default:
+        throw new UnsupportedOperationException(
+            String.format("Unsupported for catalog type: %s", catalogType));
+    }
+    Catalog catalog =
+        CatalogMigrationUtil.buildCatalog(
+            properties,
+            catalogType,
+            isSourceCatalog ? "sourceCatalog" : "targetCatalog" + "_" + catalogType,
+            null,
+            null);
+    String propertiesStr = Joiner.on(",").withKeyValueSeparator("=").join(properties);
+    if (isSourceCatalog) {
+      sourceCatalog = catalog;
+      sourceCatalogProperties = propertiesStr;
+      sourceCatalogType = catalogType.name();
+    } else {
+      targetCatalog = catalog;
+      targetCatalogProperties = propertiesStr;
+      targetCatalogType = catalogType.name();
+    }
+  }
 
   @BeforeAll
   protected static void initFilesPaths() {
@@ -80,16 +117,14 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   }
 
   @AfterEach
-  protected void afterEach() throws IOException {
+  protected void afterEach() {
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
     // create table will call refresh internally.
-    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("bar"), "tblx"), schema).refresh();
-    targetCatalog.createTable(TableIdentifier.of(Namespace.of("bar"), "tblx"), schema).refresh();
+    sourceCatalog.createTable(TableIdentifier.of(BAR, "tblx"), schema).refresh();
+    targetCatalog.createTable(TableIdentifier.of(BAR, "tblx"), schema).refresh();
 
     dropTables();
-    Files.deleteIfExists(dryRunFile);
-    Files.deleteIfExists(failedIdentifiersFile);
   }
 
   @ParameterizedTest
@@ -97,53 +132,48 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   public void testRegister(boolean deleteSourceTables) throws Exception {
     validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
 
-    RunCLI run = runCLI(deleteSourceTables, registerAllTablesArgs());
+    String operation = deleteSourceTables ? "migration" : "registration";
+    String operated = deleteSourceTables ? "migrated" : "registered";
+
+    // register or migrate  all the tables
+    RunCLI run = runCLI(deleteSourceTables, defaultArgs());
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
         .contains(
             "User has not specified the table identifiers. "
-                + "Will be selecting all the tables from all the namespaces from the source catalog.");
-    String operation = deleteSourceTables ? "migration" : "registration";
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 4 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrated" : "registered";
-    Assertions.assertThat(run.getOut())
+                + "Will be selecting all the tables from all the namespaces from the source catalog.")
+        .contains(String.format("Identified 4 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nSuccessfully %s 4 tables from %s catalog to %s catalog.",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
+                operated, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operated));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
-    targetCatalog.loadTable(TableIdentifier.parse("foo.tbl1")).refresh();
+    targetCatalog.loadTable(FOO_TBL1).refresh();
 
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(targetCatalog.listTables(FOO))
+        .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
+    Assertions.assertThat(targetCatalog.listTables(BAR))
+        .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
-    sourceCatalog.tableExists(TableIdentifier.parse("foo.tbl1"));
+    sourceCatalog.tableExists(FOO_TBL1);
 
     if (deleteSourceTables && !(sourceCatalog instanceof HadoopCatalog)) {
       // table should be deleted after migration from source catalog
-      Assertions.assertThat(sourceCatalog.listTables(Namespace.of("foo"))).isEmpty();
-      Assertions.assertThat(sourceCatalog.listTables(Namespace.of("bar"))).isEmpty();
+      Assertions.assertThat(sourceCatalog.listTables(FOO)).isEmpty();
+      Assertions.assertThat(sourceCatalog.listTables(BAR)).isEmpty();
       return;
     }
     // tables should be present in source catalog.
-    Assertions.assertThat(sourceCatalog.listTables(Namespace.of("foo")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(sourceCatalog.listTables(Namespace.of("bar")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(sourceCatalog.listTables(FOO))
+        .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
+    Assertions.assertThat(sourceCatalog.listTables(BAR))
+        .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
   }
 
   @ParameterizedTest
@@ -151,285 +181,164 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   public void testRegisterSelectedTables(boolean deleteSourceTables) throws Exception {
     validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
 
-    // using `--identifiers` option
-    RunCLI run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--identifiers",
-            "bar.tbl3",
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
+    String operation = deleteSourceTables ? "migration" : "registration";
+    String operated = deleteSourceTables ? "migrated" : "registered";
 
+    // using `--identifiers` option
+    List<String> argsList = defaultArgs();
+    argsList.addAll(Arrays.asList("--identifiers", "bar.tbl3"));
+    RunCLI run = runCLI(deleteSourceTables, argsList);
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
         .doesNotContain(
             "User has not specified the table identifiers. "
-                + "Selecting all the tables from all the namespaces from the source catalog.");
-    String operation = deleteSourceTables ? "migration" : "registration";
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 1 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrated" : "registered";
-    Assertions.assertThat(run.getOut())
+                + "Selecting all the tables from all the namespaces from the source catalog.")
+        .contains(String.format("Identified 1 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nSuccessfully %s 1 tables from %s catalog to %s catalog.",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nSuccessfully %s these tables:%n[bar.tbl3]", operation));
+                operated, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n[bar.tbl3]", operated));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
-    targetCatalog.loadTable(TableIdentifier.parse("bar.tbl3")).refresh();
+    targetCatalog.loadTable(BAR_TBL3).refresh();
 
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo"))).isEmpty();
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
-        .containsExactly(TableIdentifier.parse("bar.tbl3"));
+    Assertions.assertThat(targetCatalog.listTables(FOO)).isEmpty();
+    Assertions.assertThat(targetCatalog.listTables(BAR)).containsExactly(BAR_TBL3);
 
     Path identifierFile = outputDir.resolve("ids.txt");
 
     // using `--identifiers-from-file` option
     Files.write(identifierFile, Collections.singletonList("bar.tbl4"));
-    run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--identifiers-from-file",
-            identifierFile.toAbsolutePath().toString(),
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
-    Files.delete(identifierFile);
+    argsList = defaultArgs();
+    argsList.addAll(
+        Arrays.asList("--identifiers-from-file", identifierFile.toAbsolutePath().toString()));
+    run = runCLI(deleteSourceTables, argsList);
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
         .doesNotContain(
             "User has not specified the table identifiers. "
-                + "Selecting all the tables from all the namespaces from the source catalog.");
-    operation = deleteSourceTables ? "migration" : "registration";
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 1 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrated" : "registered";
-    Assertions.assertThat(run.getOut())
+                + "Selecting all the tables from all the namespaces from the source catalog.")
+        .contains(String.format("Identified 1 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nSuccessfully %s 1 tables from %s catalog to %s catalog.",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
+                operated, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operated));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
-    targetCatalog.loadTable(TableIdentifier.parse("bar.tbl3")).refresh();
+    targetCatalog.loadTable(BAR_TBL3).refresh();
 
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo"))).isEmpty();
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("bar.tbl4"), TableIdentifier.parse("bar.tbl3"));
+    Assertions.assertThat(targetCatalog.listTables(FOO)).isEmpty();
+    Assertions.assertThat(targetCatalog.listTables(BAR))
+        .containsExactlyInAnyOrder(BAR_TBL4, BAR_TBL3);
+    Files.delete(identifierFile);
 
     // using `--identifiers-regex` option which matches all the tables starts with "foo."
-    run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--identifiers-regex",
-            "^foo\\..*",
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
+    argsList = defaultArgs();
+    argsList.addAll(Arrays.asList("--identifiers-regex", "^foo\\..*"));
+    run = runCLI(deleteSourceTables, argsList);
+
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
         .contains(
             "User has not specified the table identifiers. Will be selecting all the tables from all the namespaces "
-                + "from the source catalog which matches the regex pattern:^foo\\..*");
-    operation = deleteSourceTables ? "migration" : "registration";
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 2 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrated" : "registered";
-    Assertions.assertThat(run.getOut())
+                + "from the source catalog which matches the regex pattern:^foo\\..*")
+        .contains(String.format("Identified 2 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nSuccessfully %s 2 tables from %s catalog to %s catalog.",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
+                operated, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operated));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
-    targetCatalog.loadTable(TableIdentifier.parse("bar.tbl3")).refresh();
+    targetCatalog.loadTable(BAR_TBL3).refresh();
 
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(targetCatalog.listTables(FOO))
+        .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
+    Assertions.assertThat(targetCatalog.listTables(BAR))
+        .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterError(boolean deleteSourceTables) throws Exception {
     validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
-    // use invalid namespace which leads to NoSuchTableException
-    RunCLI run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--identifiers",
-            "dummy.tbl3",
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
-    Assertions.assertThat(run.getExitCode()).isEqualTo(1);
+
     String operation = deleteSourceTables ? "migration" : "registration";
+    String operate = deleteSourceTables ? "migrate" : "register";
+
+    // use invalid namespace which leads to NoSuchTableException
+    List<String> argsList = defaultArgs();
+    argsList.addAll(Arrays.asList("--identifiers", "dummy.tbl3"));
+    RunCLI run = runCLI(deleteSourceTables, argsList);
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(1);
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 1 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrate" : "register";
-    Assertions.assertThat(run.getOut())
+        .contains(String.format("Identified 1 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nFailed to %s 1 tables from %s catalog to %s catalog."
                     + " Please check the `catalog_migration.log`",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nFailed to %s these tables:%n[dummy.tbl3]", operation));
+                operate, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nFailed to %s these tables:%n[dummy.tbl3]", operate));
 
     // try to register same table twice which leads to AlreadyExistsException
-    runCLI(
-        deleteSourceTables,
-        "--source-catalog-type",
-        sourceCatalogType,
-        "--source-catalog-properties",
-        sourceCatalogProperties,
-        "--target-catalog-type",
-        targetCatalogType,
-        "--target-catalog-properties",
-        targetCatalogProperties,
-        "--identifiers",
-        "foo.tbl2",
-        "--output-dir",
-        outputDir.toAbsolutePath().toString(),
-        "--disable-safety-prompts");
-    run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--identifiers",
-            "foo.tbl2",
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
+    argsList = defaultArgs();
+    argsList.addAll(Arrays.asList("--identifiers", "foo.tbl2"));
+    runCLI(deleteSourceTables, argsList);
+    run = RunCLI.run(argsList.toArray(new String[0]));
+
     Assertions.assertThat(run.getExitCode()).isEqualTo(1);
-    operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 1 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrate" : "register";
-    Assertions.assertThat(run.getOut())
+        .contains(String.format("Identified 1 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nFailed to %s 1 tables from %s catalog to %s catalog."
                     + " Please check the `catalog_migration.log`",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nFailed to %s these tables:%n[foo.tbl2]", operation));
+                operate, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nFailed to %s these tables:%n[foo.tbl2]", operate));
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterWithFewFailures(boolean deleteSourceTables) throws Exception {
     validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
-    // register only foo.tbl2
-    RunCLI run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--identifiers",
-            "foo.tbl2",
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
-    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+
     String operation = deleteSourceTables ? "migration" : "registration";
+    String operated = deleteSourceTables ? "migrated" : "registered";
+    String operate = deleteSourceTables ? "migrate" : "register";
+
+    // register only foo.tbl2
+    List<String> argsList = defaultArgs();
+    argsList.addAll(Arrays.asList("--identifiers", "foo.tbl2"));
+    RunCLI run = runCLI(deleteSourceTables, argsList);
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(0);
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 1 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrated" : "registered";
-    Assertions.assertThat(run.getOut())
+        .contains(String.format("Identified 1 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %nSuccessfully %s 1 tables from %s catalog to %s catalog.",
-                operation, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nSuccessfully %s these tables:%n[foo.tbl2]", operation));
+                operated, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n[foo.tbl2]", operated));
 
     if (deleteSourceTables && !(sourceCatalog instanceof HadoopCatalog)) {
       // create a table with the same name in source catalog which got deleted.
-      sourceCatalog.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
+      sourceCatalog.createTable(FOO_TBL2, schema);
     }
 
     // register all the tables from source catalog again. So that registering `foo.tbl2` will fail.
-    run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
+    run = runCLI(deleteSourceTables, defaultArgs());
+
     Assertions.assertThat(run.getExitCode()).isEqualTo(1);
-    operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
-        .contains(String.format("Identified 4 tables for %s.", operation));
-    operation = deleteSourceTables ? "migrated" : "registered";
-    String ops = deleteSourceTables ? "migrate" : "register";
-    Assertions.assertThat(run.getOut())
+        .contains(String.format("Identified 4 tables for %s.", operation))
         .contains(
             String.format(
                 "Summary: %n"
@@ -439,45 +348,31 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                     + "Failed identifiers are written into `failed_identifiers.txt`. "
                     + "Retry with that file using `--identifiers-from-file` option "
                     + "if the failure is because of network/connection timeouts.",
-                operation,
+                operated,
                 sourceCatalogType,
                 targetCatalogType,
-                ops,
+                operate,
                 sourceCatalogType,
-                targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operation));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Failed to %s these tables:%n[foo.tbl2]", ops));
+                targetCatalogType))
+        .contains(String.format("Details: %nSuccessfully %s these tables:%n", operated))
+        .contains(String.format("Failed to %s these tables:%n[foo.tbl2]", operate));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789
-    targetCatalog.loadTable(TableIdentifier.parse("bar.tbl3")).refresh();
+    targetCatalog.loadTable(BAR_TBL3).refresh();
 
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("foo")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("foo.tbl1"), TableIdentifier.parse("foo.tbl2"));
-    Assertions.assertThat(targetCatalog.listTables(Namespace.of("bar")))
-        .containsExactlyInAnyOrder(
-            TableIdentifier.parse("bar.tbl3"), TableIdentifier.parse("bar.tbl4"));
+    Assertions.assertThat(targetCatalog.listTables(FOO))
+        .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
+    Assertions.assertThat(targetCatalog.listTables(BAR))
+        .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
 
     // retry the failed tables using `--identifiers-from-file`
-    run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--identifiers-from-file",
-            failedIdentifiersFile.toAbsolutePath().toString(),
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
+    argsList = defaultArgs();
+    argsList.addAll(
+        Arrays.asList(
+            "--identifiers-from-file", failedIdentifiersFile.toAbsolutePath().toString()));
+    run = runCLI(deleteSourceTables, argsList);
+
     Assertions.assertThat(run.getOut())
         .contains(
             String.format(
@@ -487,9 +382,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                     + "Failed identifiers are written into `failed_identifiers.txt`. "
                     + "Retry with that file using `--identifiers-from-file` option "
                     + "if the failure is because of network/connection timeouts.",
-                ops, sourceCatalogType, targetCatalogType));
-    Assertions.assertThat(run.getOut())
-        .contains(String.format("Details: %nFailed to %s these tables:%n[foo.tbl2]", ops));
+                operate, sourceCatalogType, targetCatalogType))
+        .contains(String.format("Details: %nFailed to %s these tables:%n[foo.tbl2]", operate));
     Assertions.assertThat(Files.exists(failedIdentifiersFile)).isTrue();
     Assertions.assertThat(Files.readAllLines(failedIdentifiersFile)).containsExactly("foo.tbl2");
   }
@@ -497,24 +391,26 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterNoTables(boolean deleteSourceTables) throws Exception {
-    // use source catalog as targetCatalog which has no tables.
     Assumptions.assumeFalse(
         deleteSourceTables && targetCatalog instanceof HadoopCatalog,
         "deleting source tables is unsupported for HadoopCatalog");
+
+    // use source catalog as targetCatalog which has no tables.
     RunCLI run =
         runCLI(
             deleteSourceTables,
-            "--source-catalog-type",
-            targetCatalogType,
-            "--source-catalog-properties",
-            targetCatalogProperties,
-            "--target-catalog-type",
-            sourceCatalogType,
-            "--target-catalog-properties",
-            sourceCatalogProperties,
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
+            Lists.newArrayList(
+                "--source-catalog-type",
+                targetCatalogType,
+                "--source-catalog-properties",
+                targetCatalogProperties,
+                "--target-catalog-type",
+                sourceCatalogType,
+                "--target-catalog-properties",
+                sourceCatalogProperties,
+                "--output-dir",
+                outputDir.toAbsolutePath().toString(),
+                "--disable-safety-prompts"));
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(2);
     String operation = deleteSourceTables ? "migration" : "registration";
@@ -529,38 +425,25 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   @ValueSource(booleans = {true, false})
   public void testDryRun(boolean deleteSourceTables) throws Exception {
     validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
-    RunCLI run =
-        runCLI(
-            deleteSourceTables,
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--dry-run",
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
+
+    List<String> argsList = defaultArgs();
+    argsList.add("--dry-run");
+    RunCLI run = runCLI(deleteSourceTables, argsList);
 
     Assertions.assertThat(run.getExitCode()).isEqualTo(0);
+    String operation = deleteSourceTables ? "migration" : "registration";
     // should not prompt for dry run
     Assertions.assertThat(run.getOut())
         .doesNotContain(
-            "Are you certain that you wish to proceed, after reading the above warnings? (yes/no):");
-    Assertions.assertThat(run.getOut()).contains("Dry run is completed.");
-    String operation = deleteSourceTables ? "migration" : "registration";
-    Assertions.assertThat(run.getOut())
+            "Are you certain that you wish to proceed, after reading the above warnings? (yes/no):")
+        .contains("Dry run is completed.")
         .contains(
             String.format(
                 "Summary: %n"
                     + "Identified 4 tables for %s by dry-run. "
                     + "These identifiers are also written into dry_run_identifiers.txt. "
                     + "This file can be used with `--identifiers-from-file` option for an actual run.",
-                operation));
-    Assertions.assertThat(run.getOut())
+                operation))
         .contains(
             String.format("Details: %nIdentified these tables for %s by dry-run:%n", operation));
     Assertions.assertThat(Files.exists(dryRunFile)).isTrue();
@@ -574,22 +457,10 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
       throws Exception {
     validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
     try (LogCaptor logCaptor = LogCaptor.forClass(CatalogMigrator.class)) {
-      runCLI(
-          deleteSourceTables,
-          "--source-catalog-type",
-          sourceCatalogType,
-          "--source-catalog-properties",
-          sourceCatalogProperties,
-          "--target-catalog-type",
-          targetCatalogType,
-          "--target-catalog-properties",
-          targetCatalogProperties,
-          "--identifiers",
-          "db.dummy_table",
-          "--output-dir",
-          outputDir.toAbsolutePath().toString(),
-          "--disable-safety-prompts",
-          "--stacktrace=" + enableStacktrace);
+      List<String> argsList = defaultArgs();
+      argsList.addAll(
+          Arrays.asList("--identifiers", "db.dummy_table", "--stacktrace=" + enableStacktrace));
+      runCLI(deleteSourceTables, argsList);
 
       Assertions.assertThat(logCaptor.getLogEvents()).hasSize(1);
       LogEvent logEvent = logCaptor.getLogEvents().get(0);
@@ -609,52 +480,28 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     }
   }
 
-  protected static String[] registerAllTablesArgs() {
-    ArrayList<String> args =
-        Lists.newArrayList(
-            "--source-catalog-type",
-            sourceCatalogType,
-            "--source-catalog-properties",
-            sourceCatalogProperties,
-            "--target-catalog-type",
-            targetCatalogType,
-            "--target-catalog-properties",
-            targetCatalogProperties,
-            "--output-dir",
-            outputDir.toAbsolutePath().toString(),
-            "--disable-safety-prompts");
-    return args.toArray(new String[0]);
+  protected static List<String> defaultArgs() {
+    return Lists.newArrayList(
+        "--source-catalog-type",
+        sourceCatalogType,
+        "--source-catalog-properties",
+        sourceCatalogProperties,
+        "--target-catalog-type",
+        targetCatalogType,
+        "--target-catalog-properties",
+        targetCatalogProperties,
+        "--output-dir",
+        outputDir.toAbsolutePath().toString(),
+        "--disable-safety-prompts");
   }
 
-  protected static RunCLI runCLI(boolean deleteSourceTables, String... args) throws Exception {
-    List<String> argsList = Lists.newArrayList(args);
+  protected static RunCLI runCLI(boolean deleteSourceTables, List<String> argsList)
+      throws Exception {
     if (!deleteSourceTables) {
       argsList.add(0, "register");
     } else {
       argsList.add(0, "migrate");
     }
     return RunCLI.run(argsList.toArray(new String[0]));
-  }
-
-  protected static String catalogType(Catalog catalog) {
-    if (catalog instanceof DynamoDbCatalog) {
-      return CatalogMigrationUtil.CatalogType.DYNAMODB.name();
-    } else if (catalog instanceof EcsCatalog) {
-      return CatalogMigrationUtil.CatalogType.ECS.name();
-    } else if (catalog instanceof GlueCatalog) {
-      return CatalogMigrationUtil.CatalogType.GLUE.name();
-    } else if (catalog instanceof HadoopCatalog) {
-      return CatalogMigrationUtil.CatalogType.HADOOP.name();
-    } else if (catalog instanceof HiveCatalog) {
-      return CatalogMigrationUtil.CatalogType.HIVE.name();
-    } else if (catalog instanceof JdbcCatalog) {
-      return CatalogMigrationUtil.CatalogType.JDBC.name();
-    } else if (catalog instanceof NessieCatalog) {
-      return CatalogMigrationUtil.CatalogType.NESSIE.name();
-    } else if (catalog instanceof RESTCatalog) {
-      return CatalogMigrationUtil.CatalogType.REST.name();
-    } else {
-      return CatalogMigrationUtil.CatalogType.CUSTOM.name();
-    }
   }
 }

@@ -21,15 +21,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
-import org.apache.iceberg.nessie.NessieCatalog;
 import org.apache.iceberg.types.Types;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -37,14 +34,26 @@ import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractTest {
 
-  protected static @TempDir Path logDir;
+  protected static @TempDir Path tempDir;
 
-  private static final List<Namespace> namespaceList =
-      Arrays.asList(Namespace.of("foo"), Namespace.of("bar"), Namespace.of("db1"));
+  public static final Namespace FOO = Namespace.of("foo");
+  public static final Namespace BAR = Namespace.of("bar");
+  public static final Namespace DB1 = Namespace.of("db1");
+  public static final TableIdentifier FOO_TBL1 = TableIdentifier.of(FOO, "tbl1");
+  public static final TableIdentifier FOO_TBL2 = TableIdentifier.of(FOO, "tbl2");
+  public static final TableIdentifier BAR_TBL3 = TableIdentifier.of(BAR, "tbl3");
+  public static final TableIdentifier BAR_TBL4 = TableIdentifier.of(BAR, "tbl4");
+
+  private static final List<Namespace> namespaceList = Arrays.asList(FOO, BAR, DB1);
+
+  private static String sourceCatalogWarehouse;
+  private static String targetCatalogWarehouse;
 
   @BeforeAll
   protected static void initLogDir() {
-    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
+    System.setProperty("catalog.migration.log.dir", tempDir.toAbsolutePath().toString());
+    sourceCatalogWarehouse = tempDir.resolve("sourceCatalogWarehouse").toAbsolutePath().toString();
+    targetCatalogWarehouse = tempDir.resolve("targetCatalogWarehouse").toAbsolutePath().toString();
   }
 
   protected static Catalog sourceCatalog;
@@ -82,11 +91,11 @@ public abstract class AbstractTest {
 
   protected static void createTables() {
     // two tables in 'foo' namespace
-    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl1"), schema);
-    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("foo"), "tbl2"), schema);
+    sourceCatalog.createTable(FOO_TBL1, schema);
+    sourceCatalog.createTable(FOO_TBL2, schema);
     // two tables in 'bar' namespace
-    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl3"), schema);
-    sourceCatalog.createTable(TableIdentifier.of(Namespace.of("bar"), "tbl4"), schema);
+    sourceCatalog.createTable(BAR_TBL3, schema);
+    sourceCatalog.createTable(BAR_TBL4, schema);
   }
 
   protected static void dropTables() {
@@ -99,19 +108,27 @@ public abstract class AbstractTest {
                         namespace -> catalog.listTables(namespace).forEach(catalog::dropTable)));
   }
 
-  protected static Catalog createHadoopCatalog(String warehousePath, String name) {
+  protected static Map<String, String> nessieCatalogProperties(boolean isSourceCatalog) {
     Map<String, String> properties = new HashMap<>();
-    properties.put("warehouse", warehousePath);
-    return CatalogUtil.loadCatalog(
-        HadoopCatalog.class.getName(), name, properties, new Configuration());
+    Integer nessiePort = Integer.getInteger("quarkus.http.test-port", 19121);
+    String nessieUri = String.format("http://localhost:%d/api/v1", nessiePort);
+    properties.put("uri", nessieUri);
+    properties.put("warehouse", isSourceCatalog ? sourceCatalogWarehouse : targetCatalogWarehouse);
+    properties.put("ref", "main");
+    return properties;
   }
 
-  protected static Catalog createNessieCatalog(String warehousePath, String uri) {
+  protected static Map<String, String> hadoopCatalogProperties(boolean isSourceCatalog) {
     Map<String, String> properties = new HashMap<>();
-    properties.put("warehouse", warehousePath);
-    properties.put("ref", "main");
-    properties.put("uri", uri);
-    return CatalogUtil.loadCatalog(
-        NessieCatalog.class.getName(), "nessie", properties, new Configuration());
+    properties.put("warehouse", isSourceCatalog ? sourceCatalogWarehouse : targetCatalogWarehouse);
+    return properties;
+  }
+
+  protected static Map<String, String> hiveCatalogProperties(
+      boolean isSourceCatalog, Map<String, String> dynamicProperties) {
+    Map<String, String> properties = new HashMap<>();
+    properties.put("warehouse", isSourceCatalog ? sourceCatalogWarehouse : targetCatalogWarehouse);
+    properties.putAll(dynamicProperties);
+    return properties;
   }
 }

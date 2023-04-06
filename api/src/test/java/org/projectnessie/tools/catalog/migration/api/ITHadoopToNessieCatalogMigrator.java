@@ -32,16 +32,12 @@ import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator {
 
-  protected static final int NESSIE_PORT = Integer.getInteger("quarkus.http.test-port", 19121);
-
-  protected static String nessieUri = String.format("http://localhost:%d/api/v1", NESSIE_PORT);
-
   @BeforeAll
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
-    sourceCatalog = createHadoopCatalog(warehouse1.toAbsolutePath().toString(), "hadoop");
-    targetCatalog = createNessieCatalog(warehouse2.toAbsolutePath().toString(), nessieUri);
+    initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
+    initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
 
     createNamespaces();
   }
@@ -54,23 +50,9 @@ public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator
 
   @Test
   public void testRegisterWithNewNestedNamespaces() {
-    List<Namespace> namespaceList =
-        Arrays.asList(
-            Namespace.of("ns1"),
-            Namespace.of("ns2"),
-            Namespace.of("ns3"),
-            Namespace.of("ns1", "ns2"),
-            Namespace.of("ns1", "ns3"),
-            Namespace.of("ns1", "ns2", "ns3"));
+    List<Namespace> namespaceList = Arrays.asList(NS1, NS2, NS3, NS1_NS2, NS1_NS3, NS1_NS2_NS3);
     List<TableIdentifier> identifiers =
-        Arrays.asList(
-            TableIdentifier.parse("tblz"), // table from default namespace
-            TableIdentifier.parse("ns1.tblz"),
-            TableIdentifier.parse("ns2.tblz"),
-            TableIdentifier.parse("ns3.tblz"),
-            TableIdentifier.of(Namespace.of("ns1", "ns2"), "tblz"),
-            TableIdentifier.of(Namespace.of("ns1", "ns3"), "tblz"),
-            TableIdentifier.of(Namespace.of("ns1", "ns2", "ns3"), "tblz"));
+        Arrays.asList(TBL, NS1_TBL, NS2_TBL, NS3_TBL, NS1_NS2_TBL, NS1_NS3_TBL, NS1_NS2_NS3_TBL);
     namespaceList.forEach(((SupportsNamespaces) sourceCatalog)::createNamespace);
     identifiers.forEach(identifier -> sourceCatalog.createTable(identifier, schema));
 
@@ -94,12 +76,8 @@ public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator
 
     // manually register the table from default namespace
     catalogMigrator = catalogMigratorWithDefaultArgs(false);
-    result =
-        catalogMigrator
-            .registerTables(Collections.singletonList(TableIdentifier.of("tblz")))
-            .result();
-    Assertions.assertThat(result.registeredTableIdentifiers())
-        .containsExactly(TableIdentifier.of("tblz"));
+    result = catalogMigrator.registerTables(Collections.singletonList(TBL)).result();
+    Assertions.assertThat(result.registeredTableIdentifiers()).containsExactly(TBL);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
@@ -120,13 +98,7 @@ public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator
             .build();
 
     List<Namespace> namespaceList =
-        Arrays.asList(
-            Namespace.of("a"),
-            Namespace.of("a", "b"),
-            Namespace.of("a", "b", "c"),
-            Namespace.of("a", "b", "c", "d"),
-            Namespace.of("a", "b", "c", "d", "e"),
-            Namespace.of("a", "c"));
+        Arrays.asList(NS_A, NS_A_B, NS_A_B_C, NS_A_B_C_D, NS_A_B_C_D_E, NS_A_C);
     catalogMigrator.createNamespacesIfNotExistOnTargetCatalog(
         namespaceList.get(4)); // try creating "a.b.c.d.e"
     catalogMigrator.createNamespacesIfNotExistOnTargetCatalog(
@@ -163,13 +135,7 @@ public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator
             .build();
 
     List<Namespace> namespaceList =
-        Arrays.asList(
-            Namespace.of("a"),
-            Namespace.of("a", "b"),
-            Namespace.of("a", "b", "c"),
-            Namespace.of("a", "b", "c", "d"),
-            Namespace.of("a", "b", "c", "d", "e"),
-            Namespace.of("a", "c"));
+        Arrays.asList(NS_A, NS_A_B, NS_A_B_C, NS_A_B_C_D, NS_A_B_C_D_E, NS_A_C);
 
     namespaceList.forEach(namespace -> ((SupportsNamespaces) nessie).createNamespace(namespace));
     Set<Namespace> listedNamespaces = new HashSet<>();

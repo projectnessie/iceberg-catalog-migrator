@@ -19,12 +19,13 @@ import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.Catalog;
@@ -57,9 +58,6 @@ public abstract class CatalogMigrator {
 
   @Value.Check
   void check() {
-    Preconditions.checkArgument(
-        !targetCatalog().equals(sourceCatalog()), "target catalog is same as source catalog");
-
     if (!(targetCatalog() instanceof SupportsNamespaces)) {
       throw new UnsupportedOperationException(
           String.format(
@@ -95,7 +93,7 @@ public abstract class CatalogMigrator {
               sourceCatalog.name()));
     }
     LOG.info("Collecting all the namespaces from source catalog...");
-    Set<Namespace> namespaces = new HashSet<>();
+    Set<Namespace> namespaces = new LinkedHashSet<>();
     getAllNamespacesFromSourceCatalog(Namespace.empty(), namespaces);
 
     Predicate<TableIdentifier> matchedIdentifiersPredicate;
@@ -111,28 +109,26 @@ public abstract class CatalogMigrator {
       matchedIdentifiersPredicate =
           tableIdentifier -> pattern.matcher(tableIdentifier.toString()).matches();
     }
-    Set<TableIdentifier> identifiers =
-        namespaces.stream()
-            .filter(Objects::nonNull)
-            .flatMap(
-                namespace ->
-                    sourceCatalog.listTables(namespace).stream()
-                        .filter(matchedIdentifiersPredicate))
-            .collect(Collectors.toSet());
-
-    // add the tables from default namespace
-    try {
-      List<TableIdentifier> fromDefaultNamespace =
-          sourceCatalog.listTables(Namespace.empty()).stream()
-              .filter(matchedIdentifiersPredicate)
-              .collect(Collectors.toList());
-      identifiers.addAll(fromDefaultNamespace);
-    } catch (Exception exception) {
-      // some catalogs don't support default namespace. Hence, just log the warning and ignore the
-      // exception.
-      LOG.warn("Failed to identify tables from default namespace: {}", exception.getMessage());
-    }
-    return identifiers;
+    return namespaces.stream()
+        .flatMap(
+            namespace -> {
+              try {
+                return sourceCatalog.listTables(namespace).stream()
+                    .filter(matchedIdentifiersPredicate);
+              } catch (Exception exception) {
+                if (namespace.isEmpty()) {
+                  // some catalogs don't support default namespace.
+                  // Hence, just log the warning and ignore the exception.
+                  LOG.warn(
+                      "Failed to identify tables from default namespace: {}",
+                      exception.getMessage());
+                  return Stream.empty();
+                } else {
+                  throw exception;
+                }
+              }
+            })
+        .collect(Collectors.toCollection(LinkedHashSet::new));
   }
 
   /**
@@ -208,7 +204,7 @@ public abstract class CatalogMigrator {
   }
 
   protected void getAllNamespacesFromSourceCatalog(Namespace namespace, Set<Namespace> visited) {
-    if (!namespace.isEmpty() && !visited.add(namespace)) {
+    if (!visited.add(namespace)) {
       return;
     }
     List<Namespace> children = ((SupportsNamespaces) sourceCatalog()).listNamespaces(namespace);

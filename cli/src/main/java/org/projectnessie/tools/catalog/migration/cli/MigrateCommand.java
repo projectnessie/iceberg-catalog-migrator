@@ -16,6 +16,7 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import org.apache.iceberg.catalog.Catalog;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrator;
 import org.projectnessie.tools.catalog.migration.api.ImmutableCatalogMigrator;
 import org.slf4j.Logger;

@@ -18,6 +18,7 @@ package org.projectnessie.tools.catalog.migration.cli;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.iceberg.catalog.Catalog;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
 import picocli.CommandLine;
 
 public class SourceCatalogOptions {
@@ -51,7 +52,7 @@ public class SourceCatalogOptions {
             + "using an Iceberg FileIO.",
         "Example: --source-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY"
       })
-  private Map<String, String> hadoopConf = new HashMap<>();
+  private final Map<String, String> hadoopConf = new HashMap<>();
 
   @CommandLine.Option(
       names = {"--source-custom-catalog-impl"},

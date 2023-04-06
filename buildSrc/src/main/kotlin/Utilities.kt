@@ -16,32 +16,11 @@
 
 import com.github.jengelman.gradle.plugins.shadow.ShadowPlugin
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import com.github.vlsi.jandex.JandexProcessResources
-import java.io.File
-import java.io.FileInputStream
-import java.lang.IllegalStateException
-import java.util.Properties
-import org.gradle.api.JavaVersion
 import org.gradle.api.Project
-import org.gradle.api.artifacts.Dependency
-import org.gradle.api.artifacts.ExternalModuleDependency
-import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.VersionCatalogsExtension
-import org.gradle.api.plugins.JavaPluginExtension
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
-import org.gradle.api.tasks.testing.Test
-import org.gradle.jvm.toolchain.JavaLanguageVersion
-import org.gradle.jvm.toolchain.JavaToolchainService
-import org.gradle.kotlin.dsl.DependencyHandlerScope
-import org.gradle.kotlin.dsl.exclude
-import org.gradle.kotlin.dsl.extra
-import org.gradle.kotlin.dsl.findByType
 import org.gradle.kotlin.dsl.getByType
-import org.gradle.kotlin.dsl.module
 import org.gradle.kotlin.dsl.named
-import org.gradle.kotlin.dsl.project
-import org.gradle.kotlin.dsl.provideDelegate
 import org.gradle.kotlin.dsl.withType
 
 fun Project.libsRequiredVersion(name: String): String {
