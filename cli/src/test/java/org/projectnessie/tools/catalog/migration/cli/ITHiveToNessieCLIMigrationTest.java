@@ -37,8 +37,6 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
         Collections.singletonMap(
             "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
-
-    createNamespaces();
   }
 
   @AfterAll
@@ -47,7 +45,6 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
     HiveMetaStoreRunner.stopMetastore();
   }
 
-  // Executing migration of large number of tables for only one set of catalogs to save CI time.
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterLargeNumberOfTables(boolean deleteSourceTables) throws Exception {
@@ -73,7 +70,8 @@ public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
         .contains(String.format("Details: %nSuccessfully %s these tables:%n", operated))
         // validate intermediate output
         .contains(String.format("Attempted %s for 100 tables out of 244 tables.", operation))
-        .contains(String.format("Attempted %s for 200 tables out of 244 tables.", operation));
+        .contains(String.format("Attempted %s for 200 tables out of 244 tables.", operation))
+        .contains(String.format("Attempted %s for 244 tables out of 244 tables.", operation));
 
     // manually refreshing catalog due to missing refresh in Nessie catalog
     // https://github.com/apache/iceberg/pull/6789

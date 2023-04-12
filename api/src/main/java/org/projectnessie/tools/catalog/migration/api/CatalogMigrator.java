@@ -33,6 +33,7 @@ import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
+import org.apache.iceberg.exceptions.NoSuchNamespaceException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.immutables.value.Value;
 import org.slf4j.Logger;
@@ -115,7 +116,7 @@ public abstract class CatalogMigrator {
               try {
                 return sourceCatalog.listTables(namespace).stream()
                     .filter(matchedIdentifiersPredicate);
-              } catch (Exception exception) {
+              } catch (IllegalArgumentException | NoSuchNamespaceException exception) {
                 if (namespace.isEmpty()) {
                   // some catalogs don't support default namespace.
                   // Hence, just log the warning and ignore the exception.

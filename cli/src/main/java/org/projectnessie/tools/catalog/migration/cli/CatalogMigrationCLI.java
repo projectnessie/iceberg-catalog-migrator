@@ -38,7 +38,9 @@ public class CatalogMigrationCLI {
                   if (enableStacktrace(args)) {
                     cmd.getErr().println(cmd.getColorScheme().richStackTraceString(ex));
                   } else {
-                    consoleLog.error("Error during CLI execution: {}", ex.getMessage());
+                    consoleLog.error(
+                        "Error during CLI execution: {}. Please check `catalog_migration.log` file for more info.",
+                        ex.getMessage());
                   }
                   return 1;
                 });

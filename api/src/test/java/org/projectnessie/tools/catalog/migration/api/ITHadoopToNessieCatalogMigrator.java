@@ -38,8 +38,6 @@ public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator
 
     initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
-
-    createNamespaces();
   }
 
   @AfterAll

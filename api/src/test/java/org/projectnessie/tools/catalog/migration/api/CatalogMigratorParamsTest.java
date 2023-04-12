@@ -15,28 +15,30 @@
  */
 package org.projectnessie.tools.catalog.migration.api;
 
-import java.nio.file.Path;
 import java.util.Collections;
-import org.apache.iceberg.catalog.Catalog;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
 
-public class CatalogMigratorParamsTest {
-
-  protected static @TempDir Path logDir;
-
-  @BeforeAll
-  protected static void initLogDir() {
-    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
-  }
+public class CatalogMigratorParamsTest extends AbstractTest {
 
   @Test
   public void testInvalidArgs() {
-    Catalog sourceCatalog = new HadoopCatalog();
-    Catalog targetCatalog = new HadoopCatalog();
+    sourceCatalog =
+        CatalogUtil.loadCatalog(
+            HadoopCatalog.class.getName(),
+            "source",
+            hadoopCatalogProperties(true),
+            new Configuration());
+    targetCatalog =
+        CatalogUtil.loadCatalog(
+            HadoopCatalog.class.getName(),
+            "target",
+            hadoopCatalogProperties(true),
+            new Configuration());
 
     Assertions.assertThatThrownBy(
             () ->

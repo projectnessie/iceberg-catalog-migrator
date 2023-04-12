@@ -16,18 +16,17 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 import java.io.Console;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -116,68 +115,86 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
     validateOutputDir();
 
-    Catalog sourceCatalog = sourceCatalogOptions.build();
-    consoleLog.info("Configured source catalog: {}", sourceCatalog.name());
+    Catalog sourceCatalog = null;
+    Catalog targetCatalog = null;
 
-    Catalog targetCatalog = targetCatalogOptions.build();
-    consoleLog.info("Configured target catalog: {}", targetCatalog.name());
+    try {
+      sourceCatalog = sourceCatalogOptions.build();
+      consoleLog.info("Configured source catalog: {}", sourceCatalog.name());
 
-    if (!isDryRun && !disablePrompts && !canProceed(sourceCatalog)) {
-      return 2;
-    }
+      targetCatalog = targetCatalogOptions.build();
+      consoleLog.info("Configured target catalog: {}", targetCatalog.name());
 
-    CatalogMigrator catalogMigrator =
-        catalogMigrator(sourceCatalog, targetCatalog, enableStackTrace);
+      if (!isDryRun && !disablePrompts && !canProceed(sourceCatalog)) {
+        return 1;
+      }
 
-    if (identifiers.isEmpty()) {
-      consoleLog.info("Identifying tables for {} ...", operation());
-      identifiers = catalogMigrator.getMatchingTableIdentifiers(identifierRegEx);
+      CatalogMigrator catalogMigrator =
+          catalogMigrator(sourceCatalog, targetCatalog, enableStackTrace);
+
       if (identifiers.isEmpty()) {
-        consoleLog.warn(
-            "No tables were identified for {}. Please check `catalog_migration.log` file for more info.",
-            operation());
-        return 2;
+        consoleLog.info("Identifying tables for {} ...", operation());
+        identifiers = catalogMigrator.getMatchingTableIdentifiers(identifierRegEx);
+        if (identifiers.isEmpty()) {
+          consoleLog.warn(
+              "No tables were identified for {}. Please check `catalog_migration.log` file for more info.",
+              operation());
+          return 1;
+        }
+      }
+
+      if (isDryRun) {
+        consoleLog.info("Dry run is completed.");
+        handleDryRunResult(identifiers);
+        return 0;
+      }
+
+      consoleLog.info("Identified {} tables for {}.", identifiers.size(), operation());
+
+      consoleLog.info("Started {} ...", operation());
+
+      CatalogMigrationResult result;
+      try {
+        List<TableIdentifier> identifiersList = new ArrayList<>(identifiers);
+        int fromIndex = 0;
+        while (fromIndex < identifiersList.size()) {
+          int toIndex = Math.min(fromIndex + BATCH_SIZE, identifiersList.size());
+          List<TableIdentifier> identifierBatch = identifiersList.subList(fromIndex, toIndex);
+          catalogMigrator.registerTables(identifierBatch);
+          consoleLog.info(
+              "Attempted {} for {} tables out of {} tables.",
+              operation(),
+              toIndex,
+              identifiersList.size());
+          fromIndex += BATCH_SIZE;
+        }
+      } finally {
+        consoleLog.info("Finished {} ...", operation());
+        result = catalogMigrator.result();
+        handleResults(result);
+      }
+
+      if (!result.failedToRegisterTableIdentifiers().isEmpty()
+          || !result.failedToDeleteTableIdentifiers().isEmpty()
+          || result.registeredTableIdentifiers().isEmpty()) {
+        return 1;
+      }
+
+      return 0;
+    } finally {
+      close(sourceCatalog);
+      close(targetCatalog);
+    }
+  }
+
+  private void close(Catalog catalog) {
+    if (catalog instanceof AutoCloseable) {
+      try {
+        ((AutoCloseable) catalog).close();
+      } catch (Exception e) {
+        throw new RuntimeException(e);
       }
     }
-
-    if (isDryRun) {
-      consoleLog.info("Dry run is completed.");
-      handleDryRunResult(identifiers);
-      return 0;
-    }
-
-    consoleLog.info("Identified {} tables for {}.", identifiers.size(), operation());
-
-    consoleLog.info("Started {} ...", operation());
-
-    CatalogMigrationResult result;
-    try {
-      Iterable<List<TableIdentifier>> identifierBatches =
-          Iterables.partition(identifiers, BATCH_SIZE);
-      int totalIdentifiers = identifiers.size();
-      AtomicInteger counter = new AtomicInteger();
-      identifierBatches.forEach(
-          identifierBatch -> {
-            catalogMigrator.registerTables(identifierBatch);
-            consoleLog.info(
-                "Attempted {} for {} tables out of {} tables.",
-                operation(),
-                counter.addAndGet(identifierBatch.size()),
-                totalIdentifiers);
-          });
-    } finally {
-      consoleLog.info("Finished {} ...", operation());
-      result = catalogMigrator.result();
-      handleResults(result);
-    }
-
-    if (!result.failedToRegisterTableIdentifiers().isEmpty()
-        || !result.failedToDeleteTableIdentifiers().isEmpty()
-        || result.registeredTableIdentifiers().isEmpty()) {
-      return 1;
-    }
-
-    return 0;
   }
 
   private void checkAndWarnAboutIdentifiers(

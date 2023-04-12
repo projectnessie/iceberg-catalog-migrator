@@ -28,6 +28,7 @@ import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.types.Types;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.io.TempDir;
@@ -44,10 +45,24 @@ public abstract class AbstractTest {
   public static final TableIdentifier BAR_TBL3 = TableIdentifier.of(BAR, "tbl3");
   public static final TableIdentifier BAR_TBL4 = TableIdentifier.of(BAR, "tbl4");
 
-  private static final List<Namespace> namespaceList = Arrays.asList(FOO, BAR, DB1);
+  private static final List<Namespace> defaultNamespaceList = Arrays.asList(FOO, BAR, DB1);
+
+  protected static final Namespace NS_A = Namespace.of("a");
+  protected static final Namespace NS_A_B = Namespace.of("a", "b");
+  protected static final Namespace NS_A_C = Namespace.of("a", "c");
+  protected static final Namespace NS_A_B_C = Namespace.of("a", "b", "c");
+  protected static final Namespace NS_A_B_C_D = Namespace.of("a", "b", "c", "d");
+  protected static final Namespace NS_A_B_C_D_E = Namespace.of("a", "b", "c", "d", "e");
 
   private static String sourceCatalogWarehouse;
   private static String targetCatalogWarehouse;
+
+  protected static Catalog sourceCatalog;
+  protected static Catalog targetCatalog;
+
+  protected static final Schema schema =
+      new Schema(
+          Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get())).fields());
 
   @BeforeAll
   protected static void initLogDir() {
@@ -56,13 +71,15 @@ public abstract class AbstractTest {
     targetCatalogWarehouse = tempDir.resolve("targetCatalogWarehouse").toAbsolutePath().toString();
   }
 
-  protected static Catalog sourceCatalog;
-
-  protected static Catalog targetCatalog;
-
-  protected static final Schema schema =
-      new Schema(
-          Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get())).fields());
+  @AfterAll
+  protected static void close() throws Exception {
+    if (sourceCatalog instanceof AutoCloseable) {
+      ((AutoCloseable) sourceCatalog).close();
+    }
+    if (targetCatalog instanceof AutoCloseable) {
+      ((AutoCloseable) targetCatalog).close();
+    }
+  }
 
   protected void validateAssumptionForHadoopCatalogAsSource(boolean deleteSourceTables) {
     Assumptions.assumeFalse(
@@ -70,11 +87,14 @@ public abstract class AbstractTest {
         "deleting source tables is unsupported for HadoopCatalog");
   }
 
-  protected static void createNamespaces() {
-    namespaceList.forEach(
+  protected static void createNamespacesForSourceCatalog() {
+    defaultNamespaceList.forEach(
         namespace -> ((SupportsNamespaces) sourceCatalog).createNamespace(namespace));
+  }
+
+  protected static void createNamespacesForTargetCatalog() {
     // don't create "db1" namespace in targetCatalog
-    namespaceList
+    defaultNamespaceList
         .subList(0, 2)
         .forEach(namespace -> ((SupportsNamespaces) targetCatalog).createNamespace(namespace));
   }
@@ -84,7 +104,7 @@ public abstract class AbstractTest {
         .map(catalog -> (SupportsNamespaces) catalog)
         .forEach(
             catalog ->
-                namespaceList.stream()
+                defaultNamespaceList.stream()
                     .filter(catalog::namespaceExists)
                     .forEach(catalog::dropNamespace));
   }
@@ -102,7 +122,7 @@ public abstract class AbstractTest {
     Stream.of(sourceCatalog, targetCatalog)
         .forEach(
             catalog ->
-                namespaceList.stream()
+                defaultNamespaceList.stream()
                     .filter(namespace -> ((SupportsNamespaces) catalog).namespaceExists(namespace))
                     .forEach(
                         namespace -> catalog.listTables(namespace).forEach(catalog::dropTable)));

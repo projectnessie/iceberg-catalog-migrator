@@ -37,45 +37,39 @@ public class ProcessIdentifiersTest {
   }
 
   @Test
-  public void testOptions() throws Exception {
+  public void testIdentifiersSet() {
+    // test empty set
     Assertions.assertThat(new IdentifierOptions().processIdentifiersInput()).isEmpty();
 
+    // test valid elements
     IdentifierOptions identifierOptions = new IdentifierOptions();
     identifierOptions.identifiers = Sets.newHashSet("foo.abc", "bar.def");
     Assertions.assertThat(identifierOptions.processIdentifiersInput())
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("foo.abc"), TableIdentifier.parse("bar.def"));
+  }
 
+  @Test
+  public void testIdentifiersFromFile() throws Exception {
+    // valid file contents
     Path identifierFile = tempDir.resolve("file_with_ids.txt");
     Files.write(identifierFile, Arrays.asList("db1.t1", "db2.t2", "db123.t5"));
-    IdentifierOptions newOptions = new IdentifierOptions();
-    newOptions.identifiersFromFile = identifierFile.toAbsolutePath().toString();
-    Assertions.assertThat(newOptions.processIdentifiersInput())
+    IdentifierOptions options = new IdentifierOptions();
+    options.identifiersFromFile = identifierFile.toAbsolutePath().toString();
+    Assertions.assertThat(options.processIdentifiersInput())
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("db1.t1"),
             TableIdentifier.parse("db2.t2"),
             TableIdentifier.parse("db123.t5"));
 
-    Assertions.assertThat(identifierFile.toFile().setReadable(false)).isTrue();
-    Assertions.assertThatThrownBy(newOptions::processIdentifiersInput)
-        .isInstanceOf(UncheckedIOException.class)
-        .hasMessageContaining("Failed to read the file: " + identifierFile);
-    Assertions.assertThat(identifierFile.toFile().setReadable(true)).isTrue();
-
-    IdentifierOptions options = new IdentifierOptions();
-    options.identifiersFromFile = "path/to/file";
-    Assertions.assertThatThrownBy(options::processIdentifiersInput)
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("File specified in `--identifiers-from-file` option does not exist");
-
     // empty file
     identifierFile = tempDir.resolve("ids1.txt");
     Files.createFile(identifierFile);
     options = new IdentifierOptions();
-    newOptions.identifiersFromFile = identifierFile.toAbsolutePath().toString();
+    options.identifiersFromFile = identifierFile.toAbsolutePath().toString();
     Assertions.assertThat(options.processIdentifiersInput()).isEmpty();
 
-    // with some blanks
+    // file with some blanks contents
     identifierFile = tempDir.resolve("ids2.txt");
     String[] lines = {"abc. def", "    abc 123 ", "", "", "    xyz%n123"};
     Files.writeString(identifierFile, String.join(System.lineSeparator(), lines));
@@ -98,5 +92,45 @@ public class ProcessIdentifiersTest {
     Assertions.assertThat(identifiers)
         .containsExactlyInAnyOrder(
             TableIdentifier.parse("abc.def"), TableIdentifier.parse("xx.yy"));
+  }
+
+  @Test
+  public void testIdentifiersFromFileInvalidInputs() throws Exception {
+    // file without permission to read
+    Path identifierFile = tempDir.resolve("non_readable_file.txt");
+    Files.createFile(identifierFile);
+    Assertions.assertThat(identifierFile.toFile().setReadable(false)).isTrue();
+    IdentifierOptions options = new IdentifierOptions();
+    options.identifiersFromFile = identifierFile.toAbsolutePath().toString();
+    Assertions.assertThatThrownBy(options::processIdentifiersInput)
+        .isInstanceOf(UncheckedIOException.class)
+        .hasMessageContaining("Failed to read the file: " + identifierFile);
+    Assertions.assertThat(identifierFile.toFile().setReadable(true)).isTrue();
+
+    // file doesn't exist
+    options.identifiersFromFile = "path/to/file";
+    Assertions.assertThatThrownBy(options::processIdentifiersInput)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("File specified in `--identifiers-from-file` option does not exist");
+  }
+
+  @Test
+  public void testIdentifiersRegEx() {
+    // test valid regex
+    IdentifierOptions options = new IdentifierOptions();
+    options.identifiersRegEx = "^foo\\..*";
+    Assertions.assertThat(options.processIdentifiersInput()).isEmpty();
+
+    // test invalid regex
+    options.identifiersRegEx = "(23erf423!";
+    Assertions.assertThatThrownBy(options::processIdentifiersInput)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("--identifiers-regex pattern is not compilable");
+
+    options = new IdentifierOptions();
+    options.identifiersRegEx = "  ";
+    Assertions.assertThatThrownBy(options::processIdentifiersInput)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("--identifiers-regex should not be empty");
   }
 }

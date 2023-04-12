@@ -24,7 +24,6 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,8 +40,6 @@ public class CustomCatalogMigratorTest extends AbstractTest {
   protected static void setup() {
     sourceCatalog = createCustomCatalog(warehouse1.toAbsolutePath().toString(), "sourceCatalog");
     targetCatalog = createCustomCatalog(warehouse2.toAbsolutePath().toString(), "targetCatalog");
-
-    createNamespaces();
   }
 
   @BeforeEach
@@ -53,11 +50,6 @@ public class CustomCatalogMigratorTest extends AbstractTest {
   @AfterEach
   protected void afterEach() {
     dropTables();
-  }
-
-  @AfterAll
-  protected static void tearDown() {
-    dropNamespaces();
   }
 
   @Test

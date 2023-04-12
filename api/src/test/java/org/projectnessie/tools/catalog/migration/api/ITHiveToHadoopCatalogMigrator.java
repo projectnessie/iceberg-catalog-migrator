@@ -31,8 +31,6 @@ public class ITHiveToHadoopCatalogMigrator extends AbstractTestCatalogMigrator {
         Collections.singletonMap(
             "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
-
-    createNamespaces();
   }
 
   @AfterAll

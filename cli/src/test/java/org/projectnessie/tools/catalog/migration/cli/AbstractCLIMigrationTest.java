@@ -31,11 +31,9 @@ import nl.altindag.log.model.LogEvent;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.NoSuchTableException;
-import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -48,8 +46,6 @@ import org.projectnessie.tools.catalog.migration.api.test.AbstractTest;
 public abstract class AbstractCLIMigrationTest extends AbstractTest {
 
   protected static @TempDir Path outputDir;
-  protected static Path dryRunFile;
-  protected static Path failedIdentifiersFile;
 
   protected static String sourceCatalogProperties;
   protected static String targetCatalogProperties;
@@ -60,11 +56,13 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
   protected static void initializeSourceCatalog(
       CatalogMigrationUtil.CatalogType catalogType, Map<String, String> additionalProp) {
     initializeCatalog(true, catalogType, additionalProp);
+    createNamespacesForSourceCatalog();
   }
 
   protected static void initializeTargetCatalog(
       CatalogMigrationUtil.CatalogType catalogType, Map<String, String> additionalProp) {
     initializeCatalog(false, catalogType, additionalProp);
+    createNamespacesForTargetCatalog();
   }
 
   private static void initializeCatalog(
@@ -105,10 +103,9 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     }
   }
 
-  @BeforeAll
-  protected static void initFilesPaths() {
-    dryRunFile = outputDir.resolve(DRY_RUN_FILE);
-    failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
+  @AfterAll
+  protected static void tearDown() throws Exception {
+    dropNamespaces();
   }
 
   @BeforeEach
@@ -163,17 +160,17 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     // https://github.com/apache/iceberg/pull/6789
     sourceCatalog.tableExists(FOO_TBL1);
 
-    if (deleteSourceTables && !(sourceCatalog instanceof HadoopCatalog)) {
+    if (deleteSourceTables) {
       // table should be deleted after migration from source catalog
       Assertions.assertThat(sourceCatalog.listTables(FOO)).isEmpty();
       Assertions.assertThat(sourceCatalog.listTables(BAR)).isEmpty();
-      return;
+    } else {
+      // tables should be present in source catalog.
+      Assertions.assertThat(sourceCatalog.listTables(FOO))
+          .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
+      Assertions.assertThat(sourceCatalog.listTables(BAR))
+          .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
     }
-    // tables should be present in source catalog.
-    Assertions.assertThat(sourceCatalog.listTables(FOO))
-        .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
-    Assertions.assertThat(sourceCatalog.listTables(BAR))
-        .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
   }
 
   @ParameterizedTest
@@ -328,7 +325,7 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                 operated, sourceCatalogType, targetCatalogType))
         .contains(String.format("Details: %nSuccessfully %s these tables:%n[foo.tbl2]", operated));
 
-    if (deleteSourceTables && !(sourceCatalog instanceof HadoopCatalog)) {
+    if (deleteSourceTables) {
       // create a table with the same name in source catalog which got deleted.
       sourceCatalog.createTable(FOO_TBL2, schema);
     }
@@ -366,6 +363,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
     Assertions.assertThat(targetCatalog.listTables(BAR))
         .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
 
+    Path failedIdentifiersFile = outputDir.resolve(FAILED_IDENTIFIERS_FILE);
+
     // retry the failed tables using `--identifiers-from-file`
     argsList = defaultArgs();
     argsList.addAll(
@@ -384,35 +383,21 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                     + "if the failure is because of network/connection timeouts.",
                 operate, sourceCatalogType, targetCatalogType))
         .contains(String.format("Details: %nFailed to %s these tables:%n[foo.tbl2]", operate));
-    Assertions.assertThat(Files.exists(failedIdentifiersFile)).isTrue();
+    Assertions.assertThat(failedIdentifiersFile).exists();
     Assertions.assertThat(Files.readAllLines(failedIdentifiersFile)).containsExactly("foo.tbl2");
   }
 
   @ParameterizedTest
   @ValueSource(booleans = {true, false})
   public void testRegisterNoTables(boolean deleteSourceTables) throws Exception {
-    Assumptions.assumeFalse(
-        deleteSourceTables && targetCatalog instanceof HadoopCatalog,
-        "deleting source tables is unsupported for HadoopCatalog");
+    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
 
-    // use source catalog as targetCatalog which has no tables.
-    RunCLI run =
-        runCLI(
-            deleteSourceTables,
-            Lists.newArrayList(
-                "--source-catalog-type",
-                targetCatalogType,
-                "--source-catalog-properties",
-                targetCatalogProperties,
-                "--target-catalog-type",
-                sourceCatalogType,
-                "--target-catalog-properties",
-                sourceCatalogProperties,
-                "--output-dir",
-                outputDir.toAbsolutePath().toString(),
-                "--disable-safety-prompts"));
+    // clean up the default tables present in the source catalog.
+    dropTables();
 
-    Assertions.assertThat(run.getExitCode()).isEqualTo(2);
+    RunCLI run = runCLI(deleteSourceTables, defaultArgs());
+
+    Assertions.assertThat(run.getExitCode()).isEqualTo(1);
     String operation = deleteSourceTables ? "migration" : "registration";
     Assertions.assertThat(run.getOut())
         .contains(
@@ -446,7 +431,8 @@ public abstract class AbstractCLIMigrationTest extends AbstractTest {
                 operation))
         .contains(
             String.format("Details: %nIdentified these tables for %s by dry-run:%n", operation));
-    Assertions.assertThat(Files.exists(dryRunFile)).isTrue();
+    Path dryRunFile = outputDir.resolve(DRY_RUN_FILE);
+    Assertions.assertThat(dryRunFile).exists();
     Assertions.assertThat(Files.readAllLines(dryRunFile))
         .containsExactlyInAnyOrder("foo.tbl1", "foo.tbl2", "bar.tbl3", "bar.tbl4");
   }

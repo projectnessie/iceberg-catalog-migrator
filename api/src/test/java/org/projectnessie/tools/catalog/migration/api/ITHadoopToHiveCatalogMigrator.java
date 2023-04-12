@@ -31,9 +31,10 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
     HiveMetaStoreRunner.startMetastore();
 
     initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
-    targetCatalog = HiveMetaStoreRunner.hiveCatalog();
-
-    createNamespaces();
+    initializeTargetCatalog(
+        CatalogMigrationUtil.CatalogType.HIVE,
+        Collections.singletonMap(
+            "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
   }
 
   @AfterAll

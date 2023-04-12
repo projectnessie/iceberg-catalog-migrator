@@ -32,8 +32,6 @@ public class ITNessieToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
         CatalogMigrationUtil.CatalogType.HIVE,
         Collections.singletonMap(
             "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
-
-    createNamespaces();
   }
 
   @AfterAll

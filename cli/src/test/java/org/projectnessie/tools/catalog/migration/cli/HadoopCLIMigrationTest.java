@@ -16,7 +16,6 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import java.util.Collections;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
 
@@ -26,12 +25,5 @@ public class HadoopCLIMigrationTest extends AbstractCLIMigrationTest {
   protected static void setup() {
     initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
-
-    createNamespaces();
-  }
-
-  @AfterAll
-  protected static void tearDown() {
-    dropNamespaces();
   }
 }

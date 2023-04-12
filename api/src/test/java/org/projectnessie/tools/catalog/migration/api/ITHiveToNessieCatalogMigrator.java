@@ -26,10 +26,11 @@ public class ITHiveToNessieCatalogMigrator extends AbstractTestCatalogMigrator {
   protected static void setup() throws Exception {
     HiveMetaStoreRunner.startMetastore();
 
-    sourceCatalog = HiveMetaStoreRunner.hiveCatalog();
+    initializeSourceCatalog(
+        CatalogMigrationUtil.CatalogType.HIVE,
+        Collections.singletonMap(
+            "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
-
-    createNamespaces();
   }
 
   @AfterAll

@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Stream;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -38,11 +39,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 public class CatalogMigrationUtilTest {
 
-  protected static @TempDir Path logDir;
+  protected static @TempDir Path tempDir;
 
   @BeforeAll
   protected static void initLogDir() {
-    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
+    System.setProperty("catalog.migration.log.dir", tempDir.toAbsolutePath().toString());
   }
 
   static Stream<String> blankOrNullStrings() {
@@ -91,9 +92,10 @@ public class CatalogMigrationUtilTest {
   }
 
   @Test
-  public void testBuildHadoopCatalog() {
+  public void testBuildHadoopCatalog() throws Exception {
     Map<String, String> properties = new HashMap<>();
-    properties.put("warehouse", logDir.toAbsolutePath().toString());
+    properties.put(
+        "warehouse", tempDir.resolve(UUID.randomUUID().toString()).toAbsolutePath().toString());
     properties.put("type", "hadoop");
 
     Map<String, String> conf = new HashMap<>();
@@ -103,22 +105,29 @@ public class CatalogMigrationUtilTest {
         CatalogMigrationUtil.buildCatalog(
             properties, CatalogMigrationUtil.CatalogType.HADOOP, "catalogName", null, conf);
 
-    Assertions.assertThat(catalog).isInstanceOf(HadoopCatalog.class);
-    Assertions.assertThat(catalog.name()).isEqualTo("catalogName");
-    Assertions.assertThat(((HadoopCatalog) catalog).getConf().get("k1")).isEqualTo("v1");
-    Schema schema =
-        new Schema(
-            Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get()))
-                .fields());
-    Table table = catalog.createTable(FOO_TBL1, schema);
-    Assertions.assertThat(table.location()).contains(logDir.toAbsolutePath().toString());
-    catalog.dropTable(FOO_TBL1);
+    try {
+      Assertions.assertThat(catalog).isInstanceOf(HadoopCatalog.class);
+      Assertions.assertThat(catalog.name()).isEqualTo("catalogName");
+      Assertions.assertThat(((HadoopCatalog) catalog).getConf().get("k1")).isEqualTo("v1");
+      Schema schema =
+          new Schema(
+              Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get()))
+                  .fields());
+      Table table = catalog.createTable(FOO_TBL1, schema);
+      Assertions.assertThat(table.location()).contains(tempDir.toAbsolutePath().toString());
+      catalog.dropTable(FOO_TBL1);
+    } finally {
+      if (catalog instanceof AutoCloseable) {
+        ((AutoCloseable) catalog).close();
+      }
+    }
   }
 
   @Test
-  public void testBuildNessieCatalog() {
+  public void testBuildNessieCatalog() throws Exception {
     Map<String, String> properties = new HashMap<>();
-    properties.put("warehouse", logDir.toAbsolutePath().toString());
+    properties.put(
+        "warehouse", tempDir.resolve(UUID.randomUUID().toString()).toAbsolutePath().toString());
     properties.put("ref", "main");
     properties.put("uri", "http://localhost:19120/api/v1");
 
@@ -126,14 +135,21 @@ public class CatalogMigrationUtilTest {
         CatalogMigrationUtil.buildCatalog(
             properties, CatalogMigrationUtil.CatalogType.NESSIE, "catalogName", null, null);
 
-    Assertions.assertThat(catalog).isInstanceOf(NessieCatalog.class);
-    Assertions.assertThat(catalog.name()).isEqualTo("catalogName");
+    try {
+      Assertions.assertThat(catalog).isInstanceOf(NessieCatalog.class);
+      Assertions.assertThat(catalog.name()).isEqualTo("catalogName");
+    } finally {
+      if (catalog instanceof AutoCloseable) {
+        ((AutoCloseable) catalog).close();
+      }
+    }
   }
 
   @Test
-  public void testBuildHiveCatalog() {
+  public void testBuildHiveCatalog() throws Exception {
     Map<String, String> properties = new HashMap<>();
-    properties.put("warehouse", logDir.toAbsolutePath().toString());
+    properties.put(
+        "warehouse", tempDir.resolve(UUID.randomUUID().toString()).toAbsolutePath().toString());
     properties.put("type", "hive");
     properties.put("uri", "thrift://localhost:9083");
 
@@ -141,7 +157,13 @@ public class CatalogMigrationUtilTest {
         CatalogMigrationUtil.buildCatalog(
             properties, CatalogMigrationUtil.CatalogType.HIVE, "catalogName", null, null);
 
-    Assertions.assertThat(catalog).isInstanceOf(HiveCatalog.class);
-    Assertions.assertThat(catalog.name()).isEqualTo("catalogName");
+    try {
+      Assertions.assertThat(catalog).isInstanceOf(HiveCatalog.class);
+      Assertions.assertThat(catalog.name()).isEqualTo("catalogName");
+    } finally {
+      if (catalog instanceof AutoCloseable) {
+        ((AutoCloseable) catalog).close();
+      }
+    }
   }
 }

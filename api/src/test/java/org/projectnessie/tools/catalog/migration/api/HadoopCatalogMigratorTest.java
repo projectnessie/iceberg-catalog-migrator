@@ -24,7 +24,6 @@ import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.assertj.core.api.Assertions;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -34,13 +33,6 @@ public class HadoopCatalogMigratorTest extends AbstractTestCatalogMigrator {
   protected static void setup() {
     initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
-
-    createNamespaces();
-  }
-
-  @AfterAll
-  protected static void tearDown() {
-    dropNamespaces();
   }
 
   @Test

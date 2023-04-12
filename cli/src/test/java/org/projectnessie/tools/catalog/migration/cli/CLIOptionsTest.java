@@ -183,7 +183,7 @@ public class CLIOptionsTest {
                 "k3=v3, k4=v4",
                 "--identifiers-from-file",
                 "file.txt"),
-            "Error during CLI execution: File specified in `--identifiers-from-file` option does not exist."),
+            "Error during CLI execution: File specified in `--identifiers-from-file` option does not exist"),
         arguments(
             Lists.newArrayList(
                 "--source-catalog-type",

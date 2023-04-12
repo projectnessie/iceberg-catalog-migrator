@@ -58,7 +58,7 @@ public class MigrateCommand extends BaseRegisterCommand {
       consoleLog.error(
           "Source catalog is a Hadoop catalog and it doesn't support deleting the table entries just from the catalog. "
               + "Please use 'register' command instead.");
-      return 2;
+      return 1;
     }
     return super.call();
   }

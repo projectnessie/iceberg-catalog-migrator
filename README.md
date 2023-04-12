@@ -6,13 +6,22 @@ There are various reasons why users may want to move their Iceberg tables to a d
 * They just heard about the awesome Arctic catalog (or Nessie) and want to move their existing iceberg tables to Dremio Arctic.
 * They had an on-premise Hive catalog, but want to move tables to a cloud-based catalog as part of their cloud migration strategy.
 
-Previously, before the Iceberg `1.1.0` release, the only way to migrate tables was by copying the data using the command `insert into targetCatalog.db.tableName as select * from sourceCatalog.db.tableName`.
-After the iceberg `1.1.0` release, all Iceberg Catalogs supports register table with the `catalog#registerTable()` API.
-However, custom code is needed to migrate all the tables in bulk. 
-**Hence, we introduce a CLI tool to migrate Iceberg tables in bulk from one Iceberg Catalog to another without a data copy.**
+The CLI tool should support two commands
+* migrate - To bulk migrate the iceberg tables from source catalog to target catalog without data copy. 
+Table entries from source catalog will be deleted after the successful migration to the target catalog.
+* register - To bulk register the iceberg tables from source catalog to target catalog without data copy. 
+
+> :warning: `register` command just registers the table.
+Which means the table will be present in both the catalogs after registering.
+**Operating same table from more than one catalog can lead to missing updates, loss of data and table corruption.
+So, it is recommended to use the 'migrate' command in CLI to automatically delete the table from source catalog after registering
+or avoid operating tables from the source catalog after registering if 'migrate' command is not used.**
+
+> :warning: **It is recommended to use this CLI tool when there is no in-progress commits for the tables in the source catalog.
+In-progress commits may not make it into the target catalog if used. Which can lead to missing updates, loss of data and table corruption.**
 
 # Iceberg-catalog-migrator
-Need to have java installed in your machine(JDK11 or later version) to use this CLI tool.
+Need to have Java installed in your machine(JDK11 is recommended) to use this CLI tool.
 
 Below is the CLI syntax:
 ```
@@ -27,7 +36,7 @@ Commands:
 ```
 
 ```
-$ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar register -h
+$ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate -h
 Usage: iceberg-catalog-migrator migrate [-hV] [--disable-safety-prompts] [--dry-run] [--stacktrace] [--output-dir=<outputDirPath>]
                                         (--source-catalog-type=<type> --source-catalog-properties=<String=String>[,<String=String>...]
                                         [--source-catalog-properties=<String=String>[,<String=String>...]]...
@@ -98,16 +107,7 @@ Identifier options:
                      Example: --identifiers-regex ^foo\..*
 ```
 
-Note: Options for migrate command is exactly same as register command.
-
-> :warning: **It is recommended to use this CLI tool when there is no in-progress commits for the tables in the source catalog.**
-In-progress commits may not make it into the target catalog if used.
-
-> :warning: `register` command just registers the table. 
-Which means the table will be present in both the catalogs after registering.
-Operating same table from more than one catalog can lead to missing updates, loss of data and table corruption. 
-So, it is recommended to use the 'migrate' command in CLI to automatically delete the table from source catalog after registering 
-or avoid operating tables from the source catalog after registering if 'migrate' command is not used.
+Note: Options for register command is exactly same as migrate command.
 
 # Sample Inputs
 ## Bulk migrating all the tables from Hadoop catalog to Nessie catalog (main branch)
@@ -123,8 +123,9 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 
 ```shell
 export PAT=xxxxxxx
-export SECRETKEY=xxxxxxx
-export ACCESSKEY=xxxxxxx
+export AWS_ACCESS_KEY_ID=xxxxxxx
+export AWS_SECRET_ACCESS_KEY=xxxxxxx
+export AWS_S3_ENDPOINT=xxxxxxx
 ```
 
 ```shell
@@ -132,16 +133,16 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT \
---target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate selected tables (t1,t2 in namespace foo) from Arctic catalog (main branch) to Hadoop catalog.
 
 ```shell
 export PAT=xxxxxxx
-export SECRETKEY=xxxxxxx
-export ACCESSKEY=xxxxxxx
+export AWS_ACCESS_KEY_ID=xxxxxxx
+export AWS_SECRET_ACCESS_KEY=xxxxxxx
+export AWS_S3_ENDPOINT=xxxxxxx
 ```
 
 ```shell
@@ -149,7 +150,6 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type NESSIE \
 --source-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT \
 --target-catalog-type HADOOP \
---target-catalog-properties warehouse=/tmp/warehouse,type=hadoop --source-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY \
 --identifiers foo.t1,foo.t2
 ```
 
@@ -159,8 +159,7 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type GLUE \
 --source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
---target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from HIVE catalog to Arctic catalog (main branch)
@@ -169,8 +168,7 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
---target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from DYNAMODB catalog to Arctic catalog (main branch)
@@ -179,8 +177,7 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type DYNAMODB \
 --source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
---target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from JDBC catalog to Arctic catalog (main branch)
@@ -189,8 +186,7 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type JDBC \
 --source-catalog-properties warehouse=/tmp/warehouseJdbc,jdbc.user=root,jdbc.password=pass,uri=jdbc:mysql://localhost:3306/db1,name=catalogName \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT \
---target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 # Scenarios
@@ -276,7 +272,7 @@ Details:
 Please note that a log file will be created, which will print "successfully migrated table X" for every table migration, 
 and also log any table level failures, if present.
 
-### B.3) executes the migration and out of 1000 tables 10 tables have failed to migrate because the target catalog had the same table and namespace (maybe different schema).Remaining 990 tables were successfully migrated.
+### B.3) executes the migration and out of 1000 tables 10 tables have failed to migrate because of some error. Remaining 990 tables were successfully migrated.
 
 Sample input:
 ```shell
@@ -305,79 +301,20 @@ Details:
 ```
 
 Please note that a log file will be generated, which will print "successfully migrated table X" for every table migration and log any table-level failures in the `failed_identifiers.txt` file.
-Users can use this file to identify failed tables and search for them in the log, which will contain a stacktrace with the `TableAlreadyExists` exception for up to 10 tables. 
-This can help users understand why the migration failed. In such cases, users can rename the tables in the source catalog and migrate only those 10 tables using any of the identifier options available in the argument.
+Users can use this file to identify failed tables and search for them in the log, which will contain the exception stacktrace for those 10 tables. 
+This can help users understand why the migration failed. 
+* If the migration of those tables failed with `TableAlreadyExists` exception, users can rename the tables in the source catalog and migrate only those 10 tables using any of the identifier options available in the argument.
+* If the migration of those tables failed with `ConnectionTimeOut` exception, users can retry migrating only those 10 tables using the `--identifiers-from-file` option with the `failed_identifiers.txt` file.
+* If the migration is successful but deletion of some tables form source catalog is failed, summary will mention that these table names were written into the `failed_to_delete.txt` file and logs will capture the failure reason.
+Do not operate these tables from the source catalog and user will have to delete them manually.
 
-
-### B.4) executes the migration and out of 1000 tables 900 tables have failed to migrate because the target/source catalog connection went off. Only 100 tables were successfully migrated.
-
-Sample input:
-```shell
-java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
---source-catalog-type HADOOP \
---source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
---target-catalog-type NESSIE  \
---target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse \
---stacktrace
-```
-
-Console output will be same as B.2) till summary because even in case of failure,
-all the identified tables will be attempted for migration.
-
-```
-Summary:
-- Successfully migrated 100 tables from HADOOP catalog to NESSIE catalog.
-- Failed to migrate 900 tables from HADOOP catalog to NESSIE catalog. Please check the `catalog_migration.log` file for the failure reason.
-  Failed Identifiers are written to `failed_identifiers.txt`. Retry with that file using the `--identifiers-from-file` option if the failure is because of network/connection timeouts.
-
-Details:
-- Successfully migrated these tables:
-  [foo.tbl-1, foo.tbl-2,…,bar.tbl-100]
-- Failed to migrate these tables:
-  [bar.tbl-201, foo.tbl-202, …, …,bar.tbl-1000]
-```
-
-Please note that a log file will be generated, which will print "successfully migrated table X" for every table migration and log any table-level failures in the `failed_identifiers.txt` file. 
-Users can use this file to identify failed tables and search for them in the log, which may contain a stacktrace with the `ConnectionTimeOut` exception for up to 900 tables. 
-This can help users understand why the migration failed. Since these are timeout exceptions, users can retry migrating only those 900 tables using the `--identifiers-from-file` option with the `failed_identifiers.txt` file.
-
-### B.5)  executes the migration and out of 1000 tables. Where all the 1000 tables were migrated successfully but deletion of 200 tables from the source catalog has failed due to network issues.
-
-Sample input:
-```shell
-java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
---source-catalog-type HADOOP \
---source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
---target-catalog-type NESSIE  \
---target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouse
-```
-
-The console output will be the same as in B.2) until the summary because, even in case of failure, all the identified tables will be attempted for migration. 
-However, any tables that fail to delete will be stored in the `failed_to_delete.txt` file, and the user will have to delete them manually or stop using them from the source catalog. 
-The console will print this warning.
-
-```
-Summary:
-- Successfully migrated 1000 tables from HADOOP catalog to NESSIE catalog.
-- 200 tables were failed to delete from the source catalog due the reason captured in the logs. These table names are written into the `failed_to_delete.txt` file. Do not operate these tables from the source catalog.
-
-Details:
-- Successfully migrated these tables:
-  [foo.tbl-1, foo.tbl-2,…,bar.tbl-1000]
-- [WARNING] Failed to delete these tables from source catalog:
-  [bar.tbl-201, foo.tbl-202, …, …,bar.tbl-400]
-```
-
-Users should manually drop the table entry from the source catalog in this case or stop using these tables from the source catalog.
-
-
-### B.6)  executes the migration and out of 1000 tables. But manually aborts the migration by killing the process.
+### B.4)  executes the migration and out of 1000 tables. But manually aborts the migration by killing the process.
 
 To determine the number of migrated tables, the user can either review the log or use the listTables() function in the target catalog. 
 In the event of an abort, migrated tables may not be deleted from the source catalog, and users should avoid manipulating them from there. 
 If necessary, users can manually remove these tables from the source catalog or attempt a bulk migration to transfer all tables from the source catalog.
 
-### B.7) Users need to move away from one catalog to another with selective tables (maybe want to move only the production tables, test tables, etc)
+### B.5) Users need to move away from one catalog to another with selective tables (maybe want to move only the production tables, test tables, etc)
 
 Users can provide the selective list of identifiers to migrate using any of these 3 options
 `--identifiers`, `--identifiers-from-file`, `--identifier-regex` and it can be used along with the dry-run option too.
@@ -415,15 +352,3 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 
 Console will clearly print that only these identifiers are used for table migration.
 Rest of the behavior will be the same as mentioned in the previous sections.
-
-# Appendix A: Iceberg catalogs
-Iceberg supports managing the iceberg tables using the following  Iceberg Catalogs:
-* CUSTOM (By plugging in the jar and providing implementation class name)
-* DYNAMODB
-* ECS
-* GLUE
-* HADOOP
-* HIVE
-* JDBC
-* NESSIE (Arctic)
-* REST

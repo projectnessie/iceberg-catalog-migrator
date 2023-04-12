@@ -32,8 +32,6 @@ public class ITHiveToHadoopCLIMigrationTest extends AbstractCLIMigrationTest {
         Collections.singletonMap(
             "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
-
-    createNamespaces();
   }
 
   @AfterAll
