@@ -25,18 +25,18 @@ import org.gradle.testing.jacoco.plugins.JacocoReportAggregationPlugin
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
 class CodeCoveragePlugin : Plugin<Project> {
-    override fun apply(project: Project): Unit =
-        project.run {
-            apply<JacocoPlugin>()
-            apply<JacocoReportAggregationPlugin>()
+  override fun apply(project: Project): Unit =
+    project.run {
+      apply<JacocoPlugin>()
+      apply<JacocoReportAggregationPlugin>()
 
-            tasks.withType<JacocoReport>().configureEach {
-                reports {
-                    html.required.set(true)
-                    xml.required.set(true)
-                }
-            }
-
-            configure<JacocoPluginExtension> { toolVersion = libsRequiredVersion("jacoco") }
+      tasks.withType<JacocoReport>().configureEach {
+        reports {
+          html.required.set(true)
+          xml.required.set(true)
         }
+      }
+
+      configure<JacocoPluginExtension> { toolVersion = libsRequiredVersion("jacoco") }
+    }
 }

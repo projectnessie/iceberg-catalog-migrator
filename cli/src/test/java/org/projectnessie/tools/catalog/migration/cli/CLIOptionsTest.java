@@ -196,7 +196,7 @@ public class CLIOptionsTest {
                 "k3=v3, k4=v4",
                 "--output-dir",
                 "/path/to/file"),
-            "Error during CLI execution: Path specified in `--output-dir` does not exist"),
+            "Error during CLI execution: Failed to create the output directory from the path specified in `--output-dir`"),
         arguments(
             Lists.newArrayList(
                 "--source-catalog-type",

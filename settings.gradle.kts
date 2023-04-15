@@ -19,22 +19,26 @@ val baseVersion = file("version.txt").readText().trim()
 rootProject.name = "iceberg-catalog-migrator"
 
 gradle.beforeProject {
-    group = "org.projectnessie.tools.catalog.migration"
-    version = baseVersion
-    description =
-        when (name) {
-            "api" -> "Iceberg catalog migrator - api implementation"
-            "api-test" -> "Iceberg catalog migrator - common test implementation"
-            "cli" -> "Iceberg catalog migrator - CLI implementation"
-            else -> name
-        }
+  group = "org.projectnessie.tools.catalog.migration"
+  version = baseVersion
+  description =
+    when (name) {
+      "api" -> "Iceberg catalog migrator - api implementation"
+      "api-test" -> "Iceberg catalog migrator - common test implementation"
+      "cli" -> "Iceberg catalog migrator - CLI implementation"
+      else -> name
+    }
 }
 
 fun catalogMigratorProject(name: String) {
-    include("iceberg-catalog-migrator-$name")
-    project(":iceberg-catalog-migrator-$name").projectDir = file(name)
+  include("iceberg-catalog-migrator-$name")
+  project(":iceberg-catalog-migrator-$name").projectDir = file(name)
 }
 
 catalogMigratorProject("api")
+
 catalogMigratorProject("api-test")
+
 catalogMigratorProject("cli")
+
+catalogMigratorProject("bom")

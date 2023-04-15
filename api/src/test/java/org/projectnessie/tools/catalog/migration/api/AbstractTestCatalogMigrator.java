@@ -15,7 +15,6 @@
  */
 package org.projectnessie.tools.catalog.migration.api;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
@@ -148,9 +147,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
     // using `--identifiers` option
     CatalogMigrationResult result =
-        catalogMigratorWithDefaultArgs(deleteSourceTables)
-            .registerTables(Collections.singletonList(BAR_TBL3))
-            .result();
+        catalogMigratorWithDefaultArgs(deleteSourceTables).registerTable(BAR_TBL3).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).containsExactly(BAR_TBL3);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
@@ -182,26 +179,18 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     // use invalid namespace which leads to NoSuchTableException
     TableIdentifier identifier = TableIdentifier.parse("dummy.tbl3");
     CatalogMigrationResult result =
-        catalogMigratorWithDefaultArgs(deleteSourceTables)
-            .registerTables(Collections.singletonList(identifier))
-            .result();
+        catalogMigratorWithDefaultArgs(deleteSourceTables).registerTable(identifier).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).containsExactly(identifier);
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
     // try to register same table twice which leads to AlreadyExistsException
-    result =
-        catalogMigratorWithDefaultArgs(deleteSourceTables)
-            .registerTables(Collections.singletonList(FOO_TBL2))
-            .result();
+    result = catalogMigratorWithDefaultArgs(deleteSourceTables).registerTable(FOO_TBL2).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).containsExactly(FOO_TBL2);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    result =
-        catalogMigratorWithDefaultArgs(deleteSourceTables)
-            .registerTables(Collections.singletonList(FOO_TBL2))
-            .result();
+    result = catalogMigratorWithDefaultArgs(deleteSourceTables).registerTable(FOO_TBL2).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).contains(FOO_TBL2);
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
@@ -214,9 +203,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
     // register only foo.tbl2
     CatalogMigrationResult result =
-        catalogMigratorWithDefaultArgs(deleteSourceTables)
-            .registerTables(Collections.singletonList(FOO_TBL2))
-            .result();
+        catalogMigratorWithDefaultArgs(deleteSourceTables).registerTable(FOO_TBL2).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).containsExactly(FOO_TBL2);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
@@ -311,9 +298,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
     sourceCatalog.createTable(tbl5, schema);
 
     CatalogMigrationResult result =
-        catalogMigratorWithDefaultArgs(deleteSourceTables)
-            .registerTables(Collections.singletonList(tbl5))
-            .result();
+        catalogMigratorWithDefaultArgs(deleteSourceTables).registerTable(tbl5).result();
 
     Assertions.assertThat(result.registeredTableIdentifiers()).containsExactly(tbl5);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
@@ -337,8 +322,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
             .enableStacktrace(enableStacktrace)
             .build();
     try (LogCaptor logCaptor = LogCaptor.forClass(CatalogMigrator.class)) {
-      CatalogMigrationResult result =
-          migrator.registerTables(Collections.singletonList(identifier)).result();
+      CatalogMigrationResult result = migrator.registerTable(identifier).result();
       Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
       Assertions.assertThat(result.failedToRegisterTableIdentifiers()).containsExactly(identifier);
       Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();

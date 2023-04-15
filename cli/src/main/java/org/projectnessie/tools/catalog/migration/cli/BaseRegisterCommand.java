@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -155,18 +154,18 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
 
       CatalogMigrationResult result;
       try {
-        List<TableIdentifier> identifiersList = new ArrayList<>(identifiers);
-        int fromIndex = 0;
-        while (fromIndex < identifiersList.size()) {
-          int toIndex = Math.min(fromIndex + BATCH_SIZE, identifiersList.size());
-          List<TableIdentifier> identifierBatch = identifiersList.subList(fromIndex, toIndex);
-          catalogMigrator.registerTables(identifierBatch);
-          consoleLog.info(
-              "Attempted {} for {} tables out of {} tables.",
-              operation(),
-              toIndex,
-              identifiersList.size());
-          fromIndex += BATCH_SIZE;
+        int processedIdentifiersCount = 0;
+        for (TableIdentifier identifier : identifiers) {
+          catalogMigrator.registerTable(identifier);
+          processedIdentifiersCount++;
+          if (processedIdentifiersCount % BATCH_SIZE == 0
+              || processedIdentifiersCount == identifiers.size()) {
+            consoleLog.info(
+                "Attempted {} for {} tables out of {} tables.",
+                operation(),
+                processedIdentifiersCount,
+                identifiers.size());
+          }
         }
       } finally {
         consoleLog.info("Finished {} ...", operation());
@@ -215,8 +214,14 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
   }
 
   private void validateOutputDir() {
-    Preconditions.checkArgument(
-        Files.exists(outputDirPath), "Path specified in `--output-dir` does not exist");
+    if (!Files.exists(outputDirPath)) {
+      try {
+        Files.createDirectories(outputDirPath);
+      } catch (IOException ex) {
+        throw new UncheckedIOException(
+            "Failed to create the output directory from the path specified in `--output-dir`", ex);
+      }
+    }
     Preconditions.checkArgument(
         Files.isWritable(outputDirPath), "Path specified in `--output-dir` is not writable");
   }

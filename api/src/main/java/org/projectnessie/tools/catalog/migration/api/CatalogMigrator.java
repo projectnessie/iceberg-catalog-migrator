@@ -149,34 +149,47 @@ public abstract class CatalogMigrator {
       return this;
     }
 
-    identifiers.forEach(
-        tableIdentifier -> {
-          boolean isRegistered = registerTable(tableIdentifier);
-          if (isRegistered) {
-            resultBuilder.addRegisteredTableIdentifiers(tableIdentifier);
-          } else {
-            resultBuilder.addFailedToRegisterTableIdentifiers(tableIdentifier);
-          }
+    identifiers.forEach(this::registerTable);
+    return this;
+  }
 
-          try {
-            if (isRegistered
-                && deleteEntriesFromSourceCatalog()
-                && !sourceCatalog().dropTable(tableIdentifier, false)) {
-              resultBuilder.addFailedToDeleteTableIdentifiers(tableIdentifier);
-            }
-          } catch (Exception exception) {
-            resultBuilder.addFailedToDeleteTableIdentifiers(tableIdentifier);
-            if (enableStacktrace()) {
-              LOG.error(
-                  "Failed to delete the table after migration {}", tableIdentifier, exception);
-            } else {
-              LOG.error(
-                  "Failed to delete the table after migration {} : {}",
-                  tableIdentifier,
-                  exception.getMessage());
-            }
-          }
-        });
+  /**
+   * Register or Migrate a single table from one catalog(source catalog) to another catalog(target
+   * catalog).
+   *
+   * <p>Users must make sure that no in-progress commits on the tables of source catalog during
+   * registration.
+   *
+   * @param identifier table identifier to register or migrate
+   * @return {@code this} for use in a chained invocation
+   */
+  public CatalogMigrator registerTable(TableIdentifier identifier) {
+    Preconditions.checkArgument(identifier != null, "Identifier is null");
+
+    boolean isRegistered = registerTableToTargetCatalog(identifier);
+    if (isRegistered) {
+      resultBuilder.addRegisteredTableIdentifiers(identifier);
+    } else {
+      resultBuilder.addFailedToRegisterTableIdentifiers(identifier);
+    }
+
+    try {
+      if (isRegistered
+          && deleteEntriesFromSourceCatalog()
+          && !sourceCatalog().dropTable(identifier, false)) {
+        resultBuilder.addFailedToDeleteTableIdentifiers(identifier);
+      }
+    } catch (Exception exception) {
+      resultBuilder.addFailedToDeleteTableIdentifiers(identifier);
+      if (enableStacktrace()) {
+        LOG.error("Failed to delete the table after migration {}", identifier, exception);
+      } else {
+        LOG.error(
+            "Failed to delete the table after migration {} : {}",
+            identifier,
+            exception.getMessage());
+      }
+    }
     return this;
   }
 
@@ -214,7 +227,7 @@ public abstract class CatalogMigrator {
     }
   }
 
-  private boolean registerTable(TableIdentifier tableIdentifier) {
+  private boolean registerTableToTargetCatalog(TableIdentifier tableIdentifier) {
     try {
       createNamespacesIfNotExistOnTargetCatalog(tableIdentifier.namespace());
       // register the table to the target catalog

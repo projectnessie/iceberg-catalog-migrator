@@ -54,7 +54,6 @@ public final class CatalogMigrationUtil {
     Preconditions.checkArgument(catalogProperties != null, "catalog properties is null");
     Preconditions.checkArgument(catalogType != null, "catalog type is null");
     Configuration catalogConf = new Configuration();
-    addAwsConfigFromEnv(catalogConf);
     if (hadoopConf != null) {
       hadoopConf.forEach(catalogConf::set);
     }
@@ -93,18 +92,6 @@ public final class CatalogMigrationUtil {
         return RESTCatalog.class.getName();
       default:
         throw new IllegalArgumentException("Unsupported type: " + type.name());
-    }
-  }
-
-  private static void addAwsConfigFromEnv(Configuration configuration) {
-    if (System.getenv("AWS_ACCESS_KEY_ID") != null) {
-      configuration.set("fs.s3a.access.key", System.getenv("AWS_ACCESS_KEY_ID"));
-    }
-    if (System.getenv("AWS_SECRET_ACCESS_KEY") != null) {
-      configuration.set("fs.s3a.secret.key", System.getenv("AWS_SECRET_ACCESS_KEY"));
-    }
-    if (System.getenv("AWS_S3_ENDPOINT") != null) {
-      configuration.set("fs.s3a.endpoint", System.getenv("AWS_S3_ENDPOINT"));
     }
   }
 }

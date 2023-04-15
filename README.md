@@ -157,27 +157,27 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type GLUE \
---source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
+--source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from HIVE catalog to Arctic catalog (main branch)
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type HIVE \
---source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
+--source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from DYNAMODB catalog to Arctic catalog (main branch)
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 --source-catalog-type DYNAMODB \
---source-catalog-properties warehouse=s3a://ajantha-test/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
+--source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from JDBC catalog to Arctic catalog (main branch)
@@ -225,48 +225,39 @@ java -jar iceberg-catalog-migrator-cli-0.1.0-SNAPSHOT.jar migrate \
 After input validation, users will receive a prompt message with the option to either abort or continue the operation.
 
 ```
-Configured source catalog: HADOOP
+WARN  - User has not specified the table identifiers. Will be selecting all the tables from all the namespaces from the source catalog.
+INFO  - Configured source catalog: SOURCE_CATALOG_HADOOP
+INFO  - Configured target catalog: TARGET_CATALOG_NESSIE
+WARN  - 
+	a) Executing catalog migration when the source catalog has some in-progress commits 
+	can lead to a data loss as the in-progress commits will not be considered for migration. 
+	So, while using this tool please make sure there are no in-progress commits for the source catalog.
 
-Configured target catalog: NESSIE
-
-[WARNING]
-a) Executing catalog migration when the source catalog has some in-progress commits
-can lead to a data loss as the in-progress commits will not be considered for migration.
-So, while using this tool please make sure there are no in-progress commits for the source catalog.
-
-b) After the migration, successfully migrated tables will be deleted from the source catalog 
-and can only be accessed from the target catalog.
-Are you certain that you wish to proceed, after reading the above warnings? (yes/no):
+	b) After the migration, successfully migrated tables will be deleted from the source catalog 
+	and can only be accessed from the target catalog.
+INFO  - Are you certain that you wish to proceed, after reading the above warnings? (yes/no):
 ```
 
 If the user chooses to continue, additional information will be displayed on the console.
 
 ```
-Continuing...
-
-User has not specified the table identifiers. Selecting all the tables from all the namespaces from the source catalog.
-Collecting all the namespaces from source catalog...
-Collecting all the tables from all the namespaces of source catalog...
-
-Identified 1000 tables for migration.
-Started migration ...
-
-Attempted Migration for 100 tables out of 1000
-Attempted Migration for 200 tables out of 1000
+INFO  - Continuing...
+INFO  - Identifying tables for migration ...
+INFO  - Identified 1000 tables for migration.
+INFO  - Started migration ...
+INFO  - Attempted Migration for 100 tables out of 1000 tables.
+INFO  - Attempted Migration for 200 tables out of 1000 tables.
 .
 .
 .
-Attempted Migration for 900 tables out of 1000
-Attempted Migration for 1000 tables out of 1000
-
-Finished migration ...
-
-Summary:
-- Successfully migrated 1000 tables from HADOOP catalog to NESSIE catalog.
-
-Details:
-- Successfully migrated these tables:
-  [foo.tbl-1, foo.tbl-2, bar.tbl-4, bar.tbl-3, …, …,bar.tbl-1000]
+INFO  - Attempted Migration for 900 tables out of 1000 tables.
+INFO  - Attempted Migration for 1000 tables out of 1000 tables.
+INFO  - Finished migration ...
+INFO  - Summary:
+INFO  - Successfully migrated 1000 tables from HADOOP catalog to NESSIE catalog.
+INFO  - Details:
+INFO  - Successfully migrated these tables:
+[foo.tbl-1, foo.tbl-2, bar.tbl-4, bar.tbl-3, …, …,bar.tbl-1000]
 ```
 
 Please note that a log file will be created, which will print "successfully migrated table X" for every table migration, 
@@ -288,16 +279,15 @@ Console output will be same as B.2) till summary because even in case of failure
 all the identified tables will be attempted for migration.
 
 ```
-Summary:
-- Successfully migrated 990 tables from HADOOP catalog to NESSIE catalog.
-- Failed to migrate 10 tables from HADOOP catalog to NESSIE catalog. Please check the `catalog_migration.log` file for the failure reason.
-  Failed Identifiers are written to `failed_identifiers.txt`. Retry with that file using the `--identifiers-from-file` option if the failure is because of network/connection timeouts.
-
-Details:
-- Successfully migrated these tables:
-  [foo.tbl-1, foo.tbl-2, bar.tbl-4, bar.tbl-3, …, …,bar.tbl-1000]
-- Failed to migrate these tables:
-  [bar.tbl-201, foo.tbl-202, …, …,bar.tbl-210]
+INFO  - Summary:
+INFO  - Successfully migrated 990 tables from HADOOP catalog to NESSIE catalog.
+ERROR - Failed to migrate 10 tables from HADOOP catalog to NESSIE catalog. Please check the `catalog_migration.log` file for the failure reason.
+Failed Identifiers are written to `failed_identifiers.txt`. Retry with that file using the `--identifiers-from-file` option if the failure is because of network/connection timeouts.
+INFO  - Details:
+INFO  - Successfully migrated these tables:
+[foo.tbl-1, foo.tbl-2, bar.tbl-4, bar.tbl-3, …, …,bar.tbl-1000]
+ERROR  - Failed to migrate these tables:
+[bar.tbl-201, foo.tbl-202, …, …,bar.tbl-210]
 ```
 
 Please note that a log file will be generated, which will print "successfully migrated table X" for every table migration and log any table-level failures in the `failed_identifiers.txt` file.
