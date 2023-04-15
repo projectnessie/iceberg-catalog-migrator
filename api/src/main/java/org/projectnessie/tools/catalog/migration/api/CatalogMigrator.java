@@ -66,6 +66,13 @@ public abstract class CatalogMigrator {
               targetCatalog().name()));
     }
 
+    if (!(sourceCatalog() instanceof SupportsNamespaces)) {
+      throw new UnsupportedOperationException(
+          String.format(
+              "source catalog %s doesn't implement SupportsNamespaces to list all namespaces.",
+              sourceCatalog().name()));
+    }
+
     if (deleteEntriesFromSourceCatalog() && sourceCatalog() instanceof HadoopCatalog) {
       throw new UnsupportedOperationException(
           "Source catalog is a Hadoop catalog and it doesn't support deleting the table entries just from the catalog. Please configure `deleteEntriesFromSourceCatalog` as `false`");
@@ -86,13 +93,6 @@ public abstract class CatalogMigrator {
    * @return Set of table identifiers.
    */
   public Set<TableIdentifier> getMatchingTableIdentifiers(String identifierRegex) {
-    Catalog sourceCatalog = sourceCatalog();
-    if (!(sourceCatalog instanceof SupportsNamespaces)) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "source catalog %s doesn't implement SupportsNamespaces to list all namespaces.",
-              sourceCatalog.name()));
-    }
     LOG.info("Collecting all the namespaces from source catalog...");
     Set<Namespace> namespaces = new LinkedHashSet<>();
     getAllNamespacesFromSourceCatalog(Namespace.empty(), namespaces);
@@ -114,7 +114,7 @@ public abstract class CatalogMigrator {
         .flatMap(
             namespace -> {
               try {
-                return sourceCatalog.listTables(namespace).stream()
+                return sourceCatalog().listTables(namespace).stream()
                     .filter(matchedIdentifiersPredicate);
               } catch (IllegalArgumentException | NoSuchNamespaceException exception) {
                 if (namespace.isEmpty()) {

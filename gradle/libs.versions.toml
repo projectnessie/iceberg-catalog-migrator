@@ -2,7 +2,6 @@
 assertj = "3.24.2"
 aws = "2.20.18" # this is in mapping with iceberg repo.
 checkstyle = "10.9.3"
-ecs = "3.3.2"
 errorprone = "2.18.0"
 errorproneSlf4j = "0.1.18"
 googleJavaFormat = "1.16.0"
@@ -16,7 +15,6 @@ jandex = "3.1.0"
 junit = "5.9.2"
 logback = "1.4.5"
 logcaptor = "2.8.0"
-mysqlDriver = "8.0.32"
 nessie = "0.57.0"
 nessieRunner = "0.29.0"
 picocli = "4.7.2"
@@ -38,7 +36,6 @@ checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checks
 errorprone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "errorprone" }
 errorprone-core = { module = "com.google.errorprone:error_prone_core", version.ref = "errorprone" }
 errorprone-slf4j = { module = "jp.skypencil.errorprone.slf4j:errorprone-slf4j", version.ref = "errorproneSlf4j" }
-ecs-bundle = { module = "com.emc.ecs:object-client-bundle", version.ref = "ecs" }
 findbugs-annotations = { module = "com.google.code.findbugs:annotations", version = "3.0.1" }
 findbugs-jsr305 = { module = "com.google.code.findbugs:jsr305", version = "3.0.2" }
 google-java-format = { module = "com.google.googlejavaformat:google-java-format", version.ref = "googleJavaFormat" }
@@ -60,7 +57,6 @@ junit-jupiter-engine = { module = "org.junit.jupiter:junit-jupiter-engine" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 logcaptor = { module = "io.github.hakky54:logcaptor", version.ref = "logcaptor" }
-mysql-driver = { module = "mysql:mysql-connector-java", version.ref = "mysqlDriver" }
 picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
 slf4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
 

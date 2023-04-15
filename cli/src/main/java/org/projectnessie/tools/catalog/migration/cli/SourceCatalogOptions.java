@@ -48,9 +48,8 @@ public class SourceCatalogOptions {
       names = "--source-catalog-hadoop-conf",
       split = ",",
       description = {
-        "Optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when "
-            + "using an Iceberg FileIO.",
-        "Example: --source-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY"
+        "Optional source catalog Hadoop configurations required by the Iceberg catalog.",
+        "Example: --source-catalog-hadoop-conf key1=value1,key2=value2"
       })
   private final Map<String, String> hadoopConf = new HashMap<>();
 

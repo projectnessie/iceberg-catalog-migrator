@@ -17,8 +17,9 @@ Which means the table will be present in both the catalogs after registering.
 So, it is recommended to use the 'migrate' command in CLI to automatically delete the table from source catalog after registering
 or avoid operating tables from the source catalog after registering if 'migrate' command is not used.**
 
-> :warning: **It is recommended to use this CLI tool when there is no in-progress commits for the tables in the source catalog.
-In-progress commits may not make it into the target catalog if used. Which can lead to missing updates, loss of data and table corruption.**
+> :warning: **Avoid using this CLI tool when there are in-progress commits for tables in the source catalog 
+to prevent missing updates, data loss and table corruption in the target catalog. 
+In-progress commits may not be properly transferred and could compromise the integrity of your data.**
 
 # Iceberg-catalog-migrator
 Need to have Java installed in your machine(JDK11 is recommended) to use this CLI tool.
@@ -70,8 +71,8 @@ Source catalog options:
                      Iceberg catalog properties for source catalog (like uri, warehouse, etc).
                      Example: --source-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie
       --source-catalog-hadoop-conf=<String=String>[,<String=String>...]
-                     Optional source catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg FileIO.
-                     Example: --source-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+                     Optional source catalog Hadoop configurations required by the Iceberg catalog.
+                     Example: --source-catalog-hadoop-conf key1=value1,key2=value2
       --source-custom-catalog-impl=<customCatalogImpl>
                      Optional fully qualified class name of the custom catalog implementation of the source catalog. Required when the catalog type
                        is CUSTOM.
@@ -85,8 +86,8 @@ Target catalog options:
                      Iceberg catalog properties for target catalog (like uri, warehouse, etc).
                      Example: --target-catalog-properties uri=http://localhost:19120/api/v1,ref=main,warehouse=/tmp/warehouseNessie
       --target-catalog-hadoop-conf=<String=String>[,<String=String>...]
-                     Optional target catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when using an Iceberg FileIO.
-                     Example: --target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY
+                     Optional target catalog Hadoop configurations required by the Iceberg catalog.
+                     Example: --target-catalog-hadoop-conf key1=value1,key2=value2
       --target-custom-catalog-impl=<customCatalogImpl>
                      Optional fully qualified class name of the custom catalog implementation of the target catalog. Required when the catalog type
                        is CUSTOM.

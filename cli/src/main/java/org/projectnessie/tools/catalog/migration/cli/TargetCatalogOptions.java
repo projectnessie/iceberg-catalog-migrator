@@ -48,9 +48,8 @@ public class TargetCatalogOptions {
       names = "--target-catalog-hadoop-conf",
       split = ",",
       description = {
-        "Optional target catalog Hadoop configurations (like fs.s3a.secret.key, fs.s3a.access.key) required when "
-            + "using an Iceberg FileIO.",
-        "Example: --target-catalog-hadoop-conf fs.s3a.secret.key=$SECRETKEY,fs.s3a.access.key=$ACCESSKEY"
+        "Optional target catalog Hadoop configurations required by the Iceberg catalog.",
+        "Example: --target-catalog-hadoop-conf key1=value1,key2=value2"
       })
   private final Map<String, String> hadoopConf = new HashMap<>();
 

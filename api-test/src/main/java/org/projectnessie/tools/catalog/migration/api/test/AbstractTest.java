@@ -35,8 +35,6 @@ import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractTest {
 
-  protected static @TempDir Path tempDir;
-
   public static final Namespace FOO = Namespace.of("foo");
   public static final Namespace BAR = Namespace.of("bar");
   public static final Namespace DB1 = Namespace.of("db1");
@@ -64,9 +62,13 @@ public abstract class AbstractTest {
       new Schema(
           Types.StructType.of(Types.NestedField.required(1, "id", Types.LongType.get())).fields());
 
+  protected static @TempDir Path logDir;
+
+  protected static @TempDir Path tempDir;
+
   @BeforeAll
   protected static void initLogDir() {
-    System.setProperty("catalog.migration.log.dir", tempDir.toAbsolutePath().toString());
+    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
     sourceCatalogWarehouse = tempDir.resolve("sourceCatalogWarehouse").toAbsolutePath().toString();
     targetCatalogWarehouse = tempDir.resolve("targetCatalogWarehouse").toAbsolutePath().toString();
   }

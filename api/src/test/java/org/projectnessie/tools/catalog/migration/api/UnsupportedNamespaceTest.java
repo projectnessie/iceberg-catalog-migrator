@@ -80,14 +80,13 @@ public class UnsupportedNamespaceTest {
         .hasMessageContaining(
             "target catalog TestCatalog{} doesn't implement SupportsNamespaces to create missing namespaces.");
 
-    CatalogMigrator catalogMigrator =
-        ImmutableCatalogMigrator.builder()
-            .sourceCatalog(sourceCatalog)
-            .targetCatalog(new HadoopCatalog())
-            .deleteEntriesFromSourceCatalog(false)
-            .build();
-
-    Assertions.assertThatThrownBy(() -> catalogMigrator.getMatchingTableIdentifiers(null))
+    Assertions.assertThatThrownBy(
+            () ->
+                ImmutableCatalogMigrator.builder()
+                    .sourceCatalog(sourceCatalog)
+                    .targetCatalog(new HadoopCatalog())
+                    .deleteEntriesFromSourceCatalog(false)
+                    .build())
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining(
             "source catalog TestCatalog{} doesn't implement SupportsNamespaces to list all namespaces.");

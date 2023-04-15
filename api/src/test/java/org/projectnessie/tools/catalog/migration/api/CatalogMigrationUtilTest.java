@@ -21,7 +21,6 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Stream;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -39,11 +38,13 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 public class CatalogMigrationUtilTest {
 
-  protected static @TempDir Path tempDir;
+  private static @TempDir Path logDir;
+
+  private static @TempDir Path tempDir;
 
   @BeforeAll
   protected static void initLogDir() {
-    System.setProperty("catalog.migration.log.dir", tempDir.toAbsolutePath().toString());
+    System.setProperty("catalog.migration.log.dir", logDir.toAbsolutePath().toString());
   }
 
   static Stream<String> blankOrNullStrings() {
@@ -94,8 +95,7 @@ public class CatalogMigrationUtilTest {
   @Test
   public void testBuildHadoopCatalog() throws Exception {
     Map<String, String> properties = new HashMap<>();
-    properties.put(
-        "warehouse", tempDir.resolve(UUID.randomUUID().toString()).toAbsolutePath().toString());
+    properties.put("warehouse", tempDir.toAbsolutePath().toString());
     properties.put("type", "hadoop");
 
     Map<String, String> conf = new HashMap<>();
@@ -126,8 +126,7 @@ public class CatalogMigrationUtilTest {
   @Test
   public void testBuildNessieCatalog() throws Exception {
     Map<String, String> properties = new HashMap<>();
-    properties.put(
-        "warehouse", tempDir.resolve(UUID.randomUUID().toString()).toAbsolutePath().toString());
+    properties.put("warehouse", tempDir.toAbsolutePath().toString());
     properties.put("ref", "main");
     properties.put("uri", "http://localhost:19120/api/v1");
 
@@ -148,8 +147,7 @@ public class CatalogMigrationUtilTest {
   @Test
   public void testBuildHiveCatalog() throws Exception {
     Map<String, String> properties = new HashMap<>();
-    properties.put(
-        "warehouse", tempDir.resolve(UUID.randomUUID().toString()).toAbsolutePath().toString());
+    properties.put("warehouse", tempDir.toAbsolutePath().toString());
     properties.put("type", "hive");
     properties.put("uri", "thrift://localhost:9083");
 

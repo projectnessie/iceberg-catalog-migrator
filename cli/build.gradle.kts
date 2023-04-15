@@ -35,8 +35,6 @@ dependencies {
   implementation(libs.picocli)
   implementation(libs.iceberg.spark.runtime)
   implementation(libs.hadoop.aws) { exclude("com.amazonaws", "aws-java-sdk-bundle") }
-  runtimeOnly(libs.ecs.bundle)
-  runtimeOnly(libs.mysql.driver)
   // AWS dependencies based on https://iceberg.apache.org/docs/latest/aws/#enabling-aws-integration
   runtimeOnly(libs.aws.sdk.apache.client)
   runtimeOnly(libs.aws.sdk.auth)
