@@ -14,11 +14,42 @@
  * limitations under the License.
  */
 
-plugins { `build-conventions` }
+plugins {
+  `maven-publish`
+  signing
+  `build-conventions`
+  alias(libs.plugins.nexus.publish.plugin)
+}
+
+apply<ReleaseSupportPlugin>()
 
 spotless {
   kotlinGradle {
     // Must be repeated :( - there's no "addTarget" or so
     target("*.gradle.kts", "buildSrc/*.gradle.kts")
   }
+}
+
+publishingHelper {
+  nessieRepoName.set("iceberg-catalog-migrator")
+  inceptionYear.set("2023")
+}
+
+// Pass environment variables:
+//    ORG_GRADLE_PROJECT_sonatypeUsername
+//    ORG_GRADLE_PROJECT_sonatypePassword
+// OR in ~/.gradle/gradle.properties set
+//    sonatypeUsername
+//    sonatypePassword
+// Call targets:
+//    publishToSonatype
+//    closeAndReleaseSonatypeStagingRepository
+nexusPublishing {
+  transitionCheckOptions {
+    // default==60 (10 minutes), wait up to 60 minutes
+    maxRetries.set(360)
+    // default 10s
+    delayBetween.set(java.time.Duration.ofSeconds(10))
+  }
+  repositories { sonatype() }
 }

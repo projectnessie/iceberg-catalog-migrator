@@ -19,7 +19,7 @@ val baseVersion = file("version.txt").readText().trim()
 rootProject.name = "iceberg-catalog-migrator"
 
 gradle.beforeProject {
-  group = "org.projectnessie.tools.catalog.migration"
+  group = "org.projectnessie.iceberg-catalog-migrator"
   version = baseVersion
   description =
     when (name) {
