@@ -51,9 +51,7 @@ public class ITHadoopToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
     sourceCatalog.createTable(tableIdentifier, schema);
 
     CatalogMigrationResult result =
-        catalogMigratorWithDefaultArgs(false)
-            .registerTables(Collections.singletonList(tableIdentifier))
-            .result();
+        catalogMigratorWithDefaultArgs(false).registerTable(tableIdentifier).result();
 
     // hive catalog doesn't support multipart namespace. Hence, table should fail to register.
     Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();

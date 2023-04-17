@@ -17,7 +17,6 @@ package org.projectnessie.tools.catalog.migration.api;
 
 import com.google.common.base.Preconditions;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -118,10 +117,10 @@ public abstract class CatalogMigrator {
                     .filter(matchedIdentifiersPredicate);
               } catch (IllegalArgumentException | NoSuchNamespaceException exception) {
                 if (namespace.isEmpty()) {
-                  // some catalogs don't support default namespace.
+                  // some catalogs don't support empty namespace.
                   // Hence, just log the warning and ignore the exception.
                   LOG.warn(
-                      "Failed to identify tables from default namespace: {}",
+                      "Failed to identify tables from empty namespace : {}",
                       exception.getMessage());
                   return Stream.empty();
                 } else {
@@ -130,27 +129,6 @@ public abstract class CatalogMigrator {
               }
             })
         .collect(Collectors.toCollection(LinkedHashSet::new));
-  }
-
-  /**
-   * Register or Migrate tables from one catalog(source catalog) to another catalog(target catalog).
-   *
-   * <p>Users must make sure that no in-progress commits on the tables of source catalog during
-   * registration.
-   *
-   * @param identifiers collection of table identifiers to register or migrate
-   * @return {@code this} for use in a chained invocation
-   */
-  public CatalogMigrator registerTables(Collection<TableIdentifier> identifiers) {
-    Preconditions.checkArgument(identifiers != null, "Identifiers list is null");
-
-    if (identifiers.isEmpty()) {
-      LOG.warn("Identifiers list is empty");
-      return this;
-    }
-
-    identifiers.forEach(this::registerTable);
-    return this;
   }
 
   /**

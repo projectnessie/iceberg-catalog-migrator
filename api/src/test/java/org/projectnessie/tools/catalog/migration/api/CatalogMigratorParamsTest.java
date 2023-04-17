@@ -15,7 +15,6 @@
  */
 package org.projectnessie.tools.catalog.migration.api;
 
-import java.util.Collections;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.hadoop.HadoopCatalog;
@@ -39,17 +38,6 @@ public class CatalogMigratorParamsTest extends AbstractTest {
             "target",
             hadoopCatalogProperties(true),
             new Configuration());
-
-    Assertions.assertThatThrownBy(
-            () ->
-                ImmutableCatalogMigrator.builder()
-                    .sourceCatalog(sourceCatalog)
-                    .targetCatalog(targetCatalog)
-                    .deleteEntriesFromSourceCatalog(false)
-                    .build()
-                    .registerTables(null))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Identifiers list is null");
 
     Assertions.assertThatThrownBy(
             () ->
@@ -89,8 +77,7 @@ public class CatalogMigratorParamsTest extends AbstractTest {
                     .sourceCatalog(sourceCatalog)
                     .targetCatalog(targetCatalog)
                     .deleteEntriesFromSourceCatalog(true)
-                    .build()
-                    .registerTables(Collections.emptyList()))
+                    .build())
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining(
             "Source catalog is a Hadoop catalog and it doesn't support deleting the table entries just from the catalog. "

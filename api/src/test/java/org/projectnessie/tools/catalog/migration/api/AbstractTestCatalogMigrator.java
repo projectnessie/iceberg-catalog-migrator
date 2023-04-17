@@ -157,10 +157,10 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
     // using --identifiers-regex option which matches all the tables starts with "foo."
     CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
-    result =
-        catalogMigrator
-            .registerTables(catalogMigrator.getMatchingTableIdentifiers("^foo\\..*"))
-            .result();
+    catalogMigrator
+        .getMatchingTableIdentifiers("^foo\\..*")
+        .forEach(catalogMigrator::registerTable);
+    result = catalogMigrator.result();
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
@@ -224,25 +224,6 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
         .containsExactlyInAnyOrder(FOO_TBL1, FOO_TBL2);
     Assertions.assertThat(targetCatalog.listTables(BAR))
         .containsExactlyInAnyOrder(BAR_TBL3, BAR_TBL4);
-  }
-
-  @ParameterizedTest
-  @ValueSource(booleans = {true, false})
-  public void testRegisterNoTables(boolean deleteSourceTables) {
-    validateAssumptionForHadoopCatalogAsSource(deleteSourceTables);
-
-    // clean up the default tables present in the source catalog.
-    dropTables();
-
-    CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
-    Set<TableIdentifier> matchingTableIdentifiers =
-        catalogMigrator.getMatchingTableIdentifiers(null);
-    Assertions.assertThat(matchingTableIdentifiers).isEmpty();
-    CatalogMigrationResult result =
-        catalogMigrator.registerTables(matchingTableIdentifiers).result();
-    Assertions.assertThat(result.registeredTableIdentifiers()).isEmpty();
-    Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
-    Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
   }
 
   @ParameterizedTest
@@ -355,8 +336,7 @@ public abstract class AbstractTestCatalogMigrator extends AbstractTest {
 
   private CatalogMigrationResult registerAllTables(boolean deleteSourceTables) {
     CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(deleteSourceTables);
-    return catalogMigrator
-        .registerTables(catalogMigrator.getMatchingTableIdentifiers(null))
-        .result();
+    catalogMigrator.getMatchingTableIdentifiers(null).forEach(catalogMigrator::registerTable);
+    return catalogMigrator.result();
   }
 }

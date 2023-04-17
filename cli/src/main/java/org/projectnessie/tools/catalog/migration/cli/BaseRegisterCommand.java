@@ -326,9 +326,6 @@ public abstract class BaseRegisterCommand implements Callable<Integer> {
   }
 
   private static void writeToFile(Path filePath, Collection<TableIdentifier> identifiers) {
-    if (identifiers.isEmpty()) {
-      return;
-    }
     List<String> identifiersString =
         identifiers.stream().map(TableIdentifier::toString).collect(Collectors.toList());
     try {

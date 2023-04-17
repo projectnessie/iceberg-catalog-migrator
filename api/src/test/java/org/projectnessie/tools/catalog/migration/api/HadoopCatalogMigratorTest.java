@@ -49,23 +49,22 @@ public class HadoopCatalogMigratorTest extends AbstractTestCatalogMigrator {
     Set<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
     // HadoopCatalog supports implicit namespaces.
-    // Hence, No concept of default namespace too. So, cannot list the tables from default
+    // Hence, No concept of empty namespace too. So, cannot list the tables from empty
     // namespaces.
-    // Can only load tables in default namespace using identifiers.
+    // Can only load tables in empty namespace using identifiers.
     Assertions.assertThat(matchingTableIdentifiers)
         .containsAll(identifiers.subList(1, 7)); // without "tblz"
     Assertions.assertThat(matchingTableIdentifiers).doesNotContain(identifiers.get(0));
 
-    CatalogMigrationResult result =
-        catalogMigrator.registerTables(matchingTableIdentifiers).result();
+    matchingTableIdentifiers.forEach(catalogMigrator::registerTable);
+    CatalogMigrationResult result = catalogMigrator.result();
     Assertions.assertThat(result.registeredTableIdentifiers())
         .containsAll(identifiers.subList(1, 7)); // without "tblz"
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();
 
-    // manually register the table from default namespace
-    catalogMigrator = catalogMigratorWithDefaultArgs(false);
-    result = catalogMigrator.registerTables(Collections.singletonList(TBL)).result();
+    // manually register the table from empty namespace
+    result = catalogMigratorWithDefaultArgs(false).registerTable(TBL).result();
     Assertions.assertThat(result.registeredTableIdentifiers()).containsExactly(TBL);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).isEmpty();
     Assertions.assertThat(result.failedToDeleteTableIdentifiers()).isEmpty();

@@ -48,14 +48,14 @@ public class ITNessieToHiveCatalogMigrator extends AbstractTestCatalogMigrator {
     sourceCatalog.createTable(TBL, schema);
 
     CatalogMigrator catalogMigrator = catalogMigratorWithDefaultArgs(false);
-    // should also include table from default namespace
+    // should also include table from empty namespace
     Set<TableIdentifier> matchingTableIdentifiers =
         catalogMigrator.getMatchingTableIdentifiers(null);
     Assertions.assertThat(matchingTableIdentifiers).contains(TBL);
 
-    CatalogMigrationResult result =
-        catalogMigrator.registerTables(matchingTableIdentifiers).result();
-    // hive will not support default namespace (namespace with level = 0). Hence, register will
+    matchingTableIdentifiers.forEach(catalogMigrator::registerTable);
+    CatalogMigrationResult result = catalogMigrator.result();
+    // hive will not support empty namespace (namespace with level = 0). Hence, register will
     // fail.
     Assertions.assertThat(result.registeredTableIdentifiers()).doesNotContain(TBL);
     Assertions.assertThat(result.failedToRegisterTableIdentifiers()).containsExactly(TBL);
