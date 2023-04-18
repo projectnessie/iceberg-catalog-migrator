@@ -93,7 +93,7 @@ jobs:
           LAST_VERSION_PATTERN="$(echo ${LAST_VERSION} | sed 's/\([^.]*\)[.]\([^.]*\)[.].*/\1\\.\2/')\\."
 
           for fn in SECURITY.md README.md ; do
-            sed -i "s/${LAST_VERSION_PATTERN}[^ ]*/${RELEASE_VERSION}/" ${fn}
+            sed -i "s/${LAST_VERSION_PATTERN}[0-9]*/${RELEASE_VERSION}/" ${fn}
           done
 
       - name: Configure release-bot-user in git config

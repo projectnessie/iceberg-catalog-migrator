@@ -117,7 +117,7 @@ jobs:
           LAST_TAG=$(git describe --abbrev=0 --tags --match=catalog-migrator-* || echo "catalog-migrator-0.1.0")
           NUM_COMMITS=$(git log --format='format:%h' ${LAST_TAG}..HEAD^1 | wc -l)
 
-          git log --perl-regexp --author '^(?!.*renovate|.*nessie-release-workflow).*$' --format='format:* %s' ${LAST_TAG}..${GIT_TAG} | grep -v '^\* \[release\] .*$' > ${DIR}/release-log
+          git log --perl-regexp --author '^(?!.*renovate|.*nessie-release-workflow).*$' --format='format:* %s' ${LAST_TAG}..${GIT_TAG} | (grep -v '^\* \[release\] .*$' || true) > ${DIR}/release-log
 
           Q_CLI_EXEC="https://github.com/projectnessie/iceberg-catalog-migrator/releases/download/iceberg-catalog-migrator-${RELEASE_VERSION}/iceberg-catalog-migrator-${RELEASE_VERSION}"
 
@@ -129,7 +129,7 @@ jobs:
 
           ## Try it
 
-          The attached executable file [\`iceberg-catalog-migrator-${RELEASE_VERSION}\`](${Q_NATIVE_URL}) is an executable jar file.
+          The attached executable file [\`iceberg-catalog-migrator-${RELEASE_VERSION}\`](${Q_CLI_EXEC}) is an executable jar file.
           (\`chmod 744 iceberg-catalog-migrator-${RELEASE_VERSION}\` after download.)
           Can also be run using \`java -jar iceberg-catalog-migrator-${RELEASE_VERSION}\`.
 
