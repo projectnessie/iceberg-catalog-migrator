@@ -119,8 +119,7 @@ jobs:
 
           git log --perl-regexp --author '^(?!.*renovate|.*nessie-release-workflow).*$' --format='format:* %s' ${LAST_TAG}..${GIT_TAG} | (grep -v '^\* \[release\] .*$' || true) > ${DIR}/release-log
 
-          Q_CLI_EXEC="https://github.com/projectnessie/iceberg-catalog-migrator/releases/download/iceberg-catalog-migrator-${RELEASE_VERSION}/iceberg-catalog-migrator-${RELEASE_VERSION}"
-
+          Q_CLI_EXEC="https://github.com/projectnessie/iceberg-catalog-migrator/releases/download/catalog-migrator-${RELEASE_VERSION}/iceberg-catalog-migrator-${RELEASE_VERSION}"
           cat <<EOF > ${NOTES_FILE}
           # Iceberg Catalog Migrator ${RELEASE_VERSION} release
 
