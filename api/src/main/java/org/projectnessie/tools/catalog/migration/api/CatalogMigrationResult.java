@@ -13,12 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.projectnessie.tools.catalog.migration.api;
 
-plugins { `build-conventions` }
+import java.util.List;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.immutables.value.Value;
 
-spotless {
-  kotlinGradle {
-    // Must be repeated :( - there's no "addTarget" or so
-    target("*.gradle.kts", "buildSrc/*.gradle.kts")
-  }
+@Value.Immutable
+public interface CatalogMigrationResult {
+
+  List<TableIdentifier> registeredTableIdentifiers();
+
+  List<TableIdentifier> failedToRegisterTableIdentifiers();
+
+  List<TableIdentifier> failedToDeleteTableIdentifiers();
 }

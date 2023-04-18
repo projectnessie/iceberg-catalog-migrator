@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-plugins { `build-conventions` }
+import org.gradle.api.Project
 
-spotless {
-  kotlinGradle {
-    // Must be repeated :( - there's no "addTarget" or so
-    target("*.gradle.kts", "buildSrc/*.gradle.kts")
-  }
+open class PublishingHelperExtension(project: Project) {
+  val nessieRepoName = project.objects.property(String::class.java)
+  val inceptionYear = project.objects.property(String::class.java)
 }

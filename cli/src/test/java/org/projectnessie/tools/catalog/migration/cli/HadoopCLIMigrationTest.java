@@ -13,12 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.projectnessie.tools.catalog.migration.cli;
 
-plugins { `build-conventions` }
+import java.util.Collections;
+import org.junit.jupiter.api.BeforeAll;
+import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
 
-spotless {
-  kotlinGradle {
-    // Must be repeated :( - there's no "addTarget" or so
-    target("*.gradle.kts", "buildSrc/*.gradle.kts")
+public class HadoopCLIMigrationTest extends AbstractCLIMigrationTest {
+
+  @BeforeAll
+  protected static void setup() {
+    initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
+    initializeTargetCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
   }
 }

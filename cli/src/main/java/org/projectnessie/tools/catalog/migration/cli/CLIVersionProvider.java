@@ -13,12 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.projectnessie.tools.catalog.migration.cli;
 
-plugins { `build-conventions` }
+import java.io.InputStream;
+import java.util.Properties;
+import picocli.CommandLine.IVersionProvider;
 
-spotless {
-  kotlinGradle {
-    // Must be repeated :( - there's no "addTarget" or so
-    target("*.gradle.kts", "buildSrc/*.gradle.kts")
+public class CLIVersionProvider implements IVersionProvider {
+  @Override
+  public String[] getVersion() throws Exception {
+    try (InputStream input =
+        CLIVersionProvider.class
+            .getResource("version.properties")
+            .openConnection()
+            .getInputStream()) {
+      Properties props = new Properties();
+      props.load(input);
+      return new String[] {props.getProperty("cli.version")};
+    }
   }
 }

@@ -14,11 +14,27 @@
  * limitations under the License.
  */
 
-plugins { `build-conventions` }
+val hasSrcMain = projectDir.resolve("src/main").exists()
+val hasSrcTest = projectDir.resolve("src/test").exists()
 
-spotless {
-  kotlinGradle {
-    // Must be repeated :( - there's no "addTarget" or so
-    target("*.gradle.kts", "buildSrc/*.gradle.kts")
+apply<PublishingHelperPlugin>()
+
+configureIde()
+
+configureSpotless()
+
+configureJandex()
+
+configureJava()
+
+apply<CodeCoveragePlugin>()
+
+if (hasSrcMain || hasSrcTest) {
+  configureCheckstyle()
+
+  configureErrorprone()
+
+  if (hasSrcTest) {
+    configureTestTasks()
   }
 }

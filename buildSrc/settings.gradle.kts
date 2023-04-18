@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-plugins { `build-conventions` }
-
-spotless {
-  kotlinGradle {
-    // Must be repeated :( - there's no "addTarget" or so
-    target("*.gradle.kts", "buildSrc/*.gradle.kts")
-  }
+dependencyResolutionManagement {
+  versionCatalogs { create("baselibs") { from(files("../gradle/baselibs.versions.toml")) } }
 }

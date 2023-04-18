@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.projectnessie.tools.catalog.migration.api.test;
 
-plugins { `build-conventions` }
+import org.apache.iceberg.hive.HiveCatalog;
+import org.apache.iceberg.hive.HiveMetastoreTest;
 
-spotless {
-  kotlinGradle {
-    // Must be repeated :( - there's no "addTarget" or so
-    target("*.gradle.kts", "buildSrc/*.gradle.kts")
+public class HiveMetaStoreRunner extends HiveMetastoreTest {
+
+  // Expose the catalog for tests
+  public static HiveCatalog hiveCatalog() {
+    return HiveMetastoreTest.catalog;
   }
 }

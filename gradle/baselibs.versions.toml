@@ -1,0 +1,15 @@
+# Dependencies needed by buildSrc/
+
+[versions]
+errorpronePlugin = "3.0.1"
+ideaExt = "1.1.7"
+jandexPlugin = "1.87"
+shadowPlugin = "8.1.1"
+spotlessPlugin = "6.18.0"
+
+[libraries]
+errorprone = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version.ref = "errorpronePlugin" }
+idea-ext = { module = "gradle.plugin.org.jetbrains.gradle.plugin.idea-ext:gradle-idea-ext", version.ref = "ideaExt" }
+jandex = { module = "com.github.vlsi.gradle:jandex-plugin", version.ref = "jandexPlugin" }
+shadow = { module = "com.github.johnrengelman:shadow", version.ref = "shadowPlugin" }
+spotless = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotlessPlugin" }
