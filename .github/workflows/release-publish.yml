@@ -1,0 +1,151 @@
+# Copyright (C) 2020 Dremio
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Publish Iceberg Catalog Migrator release artifacts
+
+# Triggered when a `catalog-migrator-*` tag is being pushed.
+
+name: Publish release
+
+on:
+  push:
+    tags:
+      - catalog-migrator-*
+
+  workflow_dispatch:
+    inputs:
+      releaseTag:
+        description: 'Release tag name to re-release'
+        required: true
+
+jobs:
+  publish-release:
+    name: Publish release
+    runs-on: ubuntu-22.04
+    if: github.repository_owner == 'projectnessie'
+
+    steps:
+      # GH doesn't provide just the tag name, so this step strips `/refs/tags/catalog-migrator-` from `GITHUB_REF`
+      # and provides the output `VERSION` or, in case of a manual run, uses the input `releaseTag` as
+      # the input tag name.
+      - name: Get release version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]] ; then
+            V="${GITHUB_REF/refs\/tags\/}"
+          else
+            V="${{ github.event.inputs.releaseTag }}"
+          fi
+          # check if tag matches patterns like catalog-migrator-0.5, catalog-migrator-0.10.4.3-alpha1, etc
+          if [[ ${V} =~ ^catalog-migrator-[0-9]+[.][0-9.]*[0-9](-[a-zA-Z0-9]+)?$ ]]; then
+            echo "RELEASE_VERSION=${V/catalog-migrator-}" >> ${GITHUB_ENV}
+            echo "GIT_TAG=${V}" >> ${GITHUB_ENV}
+          else
+            echo "Tag must start with catalog-migrator- followed by a valid version (got tag ${V}, ref is ${GITHUB_REF} )"
+            exit 1
+          fi
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 11
+
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        if: ${{ github.event_name == 'push' }}
+        with:
+          fetch-depth: '0'
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        with:
+          fetch-depth: '0'
+          ref: refs/tags/${{ github.event.inputs.releaseTag }}
+
+      # Deploys Maven artifacts. Build and test steps were already ran in previous steps.
+      # Not running tests, because the environment contains secrets.
+      - name: Publish Maven artifacts for release
+        env:
+          # To release with Gradle
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.OSSRH_ACCESS_ID }}
+          ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.OSSRH_TOKEN }}
+          # To release commits that used Maven to build
+          MAVEN_USERNAME: ${{ secrets.OSSRH_ACCESS_ID }}
+          MAVEN_OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+        run: |
+          echo "::group::Publish to Sonatype"
+          ./gradlew --no-watch-fs --no-daemon publishToMavenLocal publishToSonatype closeAndReleaseSonatypeStagingRepository -Prelease
+          echo "::endgroup::"
+
+          cp cli/build/executable/iceberg-catalog-migrator cli/build/executable/iceberg-catalog-migrator-${RELEASE_VERSION}
+
+          echo "CLI_EXEC=cli/build/executable/iceberg-catalog-migrator-${RELEASE_VERSION}" >> ${GITHUB_ENV}
+
+          echo "## Successfully released ${RELEASE_VERSION} to Sonatype" >> $GITHUB_STEP_SUMMARY
+
+      # Prepare Iceberg Catalog Migrator release notes for GitHub
+      #
+      # The markdown file for the release is generated using some mostly simple shell script.
+      #
+      # `LAST_TAG` is evaluated using `git describe`, which is the name of the git tag before the release tag
+      # `NUM_COMMITS` is the total number of commits "between" LAST_TAG and GIT_TAG
+      #
+      # "Full Changelog" is the output of a `git log` considering the commits "between" LAST_TAG and
+      # GIT_TAG, removing the commits by `renovate` and `nessie-release-workflow`.
+      # Also removes commits that start with `[release] `.
+      #
+      # The final markdown is just a `cat` of the above information including some basic markdown formatting.
+      #
+      - name: Prepare release for GitHub
+        run: |
+          DIR=$(mktemp -d)
+          NOTES_FILE=${DIR}/release-notes.md
+          LAST_TAG=$(git describe --abbrev=0 --tags --match=catalog-migrator-* || echo "catalog-migrator-0.1.0")
+          NUM_COMMITS=$(git log --format='format:%h' ${LAST_TAG}..HEAD^1 | wc -l)
+
+          git log --perl-regexp --author '^(?!.*renovate|.*nessie-release-workflow).*$' --format='format:* %s' ${LAST_TAG}..${GIT_TAG} | grep -v '^\* \[release\] .*$' > ${DIR}/release-log
+
+          Q_CLI_EXEC="https://github.com/projectnessie/iceberg-catalog-migrator/releases/download/iceberg-catalog-migrator-${RELEASE_VERSION}/iceberg-catalog-migrator-${RELEASE_VERSION}"
+
+          cat <<EOF > ${NOTES_FILE}
+          # Iceberg Catalog Migrator ${RELEASE_VERSION} release
+
+          * ${NUM_COMMITS} commits since ${LAST_TAG#catalog-migrator-}
+          * Maven Central: https://search.maven.org/search?q=g:org.projectnessie.iceberg-catalog-migrator+v:${RELEASE_VERSION}
+
+          ## Try it
+
+          The attached executable file [\`iceberg-catalog-migrator-${RELEASE_VERSION}\`](${Q_NATIVE_URL}) is an executable jar file.
+          (\`chmod 744 iceberg-catalog-migrator-${RELEASE_VERSION}\` after download.)
+          Can also be run using \`java -jar iceberg-catalog-migrator-${RELEASE_VERSION}\`.
+
+          ## Full Changelog (minus renovate commits):
+
+          $(cat ${DIR}/release-log)
+          EOF
+
+          echo "NOTES_FILE=${NOTES_FILE}" >> ${GITHUB_ENV}
+
+          cat "${NOTES_FILE}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create release in GitHub
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | gh auth login --with-token
+          gh release create ${GIT_TAG} \
+            --notes-file ${{ env.NOTES_FILE }} \
+            --title "Iceberg Catalog Migrator ${RELEASE_VERSION}" \
+            "${CLI_EXEC}"

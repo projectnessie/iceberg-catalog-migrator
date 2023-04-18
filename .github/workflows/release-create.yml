@@ -1,0 +1,167 @@
+# Copyright (C) 2020 Dremio
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# Projectnessie GitHub Release workflow
+
+# Creates a release tag for the current in-tree version from the main or another branch.
+
+# This workflow creates the git commits + git tag for a Iceberg Catalog Migrator release.
+
+name: Create Release
+
+on:
+  # Manually triggered
+  workflow_dispatch:
+    inputs:
+      releaseFromBranch:
+        description: 'The branch name the release from, leave empty to release from latest commit on main.'
+        required: false
+      bumpType:
+        description: 'Optional: bump patch, minor or major version (`patch`, `minor`, `major`). Default is `minor`.'
+        required: true
+        type: string
+        default: "minor"
+
+jobs:
+  create-release:
+    name: Create release
+    runs-on: ubuntu-22.04
+    if: github.repository_owner == 'projectnessie'
+    env:
+      RELEASE_FROM: ${{ github.event.inputs.releaseFromBranch }}
+      BUMP_TYPE: ${{ github.event.inputs.bumpType }}
+
+    steps:
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 11
+
+      - name: Checkout
+        uses: actions/checkout@v3.5.2
+        with:
+          ref: ${{ env.RELEASE_FROM }}
+          fetch-depth: '0'
+
+      - name: Bump to release version
+        uses: gradle/gradle-build-action@v2
+        with:
+          cache-disabled: true
+          arguments: :bumpVersion --bumpType ${{ env.BUMP_TYPE }} --bumpToRelease
+
+      - name: Get release version
+        run: |
+          RELEASE_VERSION=$(cat version.txt)
+          LAST_TAG=$(git describe --abbrev=0 --tags --match=catalog-migrator-* || echo "catalog-migrator-0.1.0")
+
+          echo "LAST_TAG=${LAST_TAG}" >> ${GITHUB_ENV}
+          echo "RELEASE_VERSION=${RELEASE_VERSION}" >> ${GITHUB_ENV}
+          echo "GIT_TAG=catalog-migrator-${RELEASE_VERSION}" >> ${GITHUB_ENV}
+
+          cat <<! >> $GITHUB_STEP_SUMMARY
+          ## About to release
+
+          Version information right before the Git release tag and commit:
+
+          | Name | Value |
+          | --- | --- |
+          | Iceberg Catalog Migrator release version  | ${RELEASE_VERSION}            | 
+          | Git tag name            | \`catalog-migrator-${RELEASE_VERSION}\` | 
+          | Previous Git tag        | \`${LAST_TAG}\`               | 
+          | Release from branch     | ${RELEASE_FROM}               | 
+          | Bump type               | ${BUMP_TYPE}                  |
+          | Before release Git HEAD | \`$(git rev-parse HEAD)\`     |
+          !
+
+      - name: Update .md files referencing latest version
+        run: |
+          LAST_VERSION="${LAST_TAG#catalog-migrator-}"
+          LAST_VERSION_PATTERN="$(echo ${LAST_VERSION} | sed 's/\([^.]*\)[.]\([^.]*\)[.].*/\1\\.\2/')\\."
+
+          for fn in SECURITY.md README.md ; do
+            sed -i "s/${LAST_VERSION_PATTERN}[^ ]*/${RELEASE_VERSION}/" ${fn}
+          done
+
+      - name: Configure release-bot-user in git config
+        run: |
+          git config --global user.email "nessie-release-workflow-noreply@projectnessie.org"
+          git config --global user.name "Nessie Release Workflow [bot]"
+
+      # Record the release-version in git and add the git tag for the release.
+      - name: Record ${{ env.RELEASE_VERSION }} release in git
+        run: |
+          git commit -a -m "[release] release catalog-migrator-${RELEASE_VERSION}"
+          git tag -f -a -m "Release ${RELEASE_VERSION} from ${RELEASE_FROM} with bump-type ${BUMP_TYPE}" ${GIT_TAG}
+
+          cat <<! >> $GITHUB_STEP_SUMMARY
+          ## Release version information
+
+          Version information after the Git release tag:
+
+          | Name | Value |
+          | --- | --- |
+          | Iceberg Catalog Migrator release version | ${RELEASE_VERSION}        | 
+          | Git tag name           | \`${GIT_TAG}\`\           | 
+          | Previous Git tag       | \`${LAST_TAG}\`           | 
+          | Release from branch    | ${RELEASE_FROM}           | 
+          | Bump type              | ${BUMP_TYPE}              |
+          | Release Git HEAD       | \`$(git rev-parse HEAD)\` |
+          !
+
+      # Bump to the next patch version as a SNAPSHOT
+      - name: Bump to next patch version
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: :bumpVersion --bumpType patch
+
+      - name: Get next patch version
+        run: |
+          NEXT_VERSION="$(cat version.txt)"
+          echo "NEXT_VERSION=${NEXT_VERSION}" >> ${GITHUB_ENV}
+          echo "NEXT_VERSION_NO_SNAPSHOT=${NEXT_VERSION%-SNAPSHOT}" >> ${GITHUB_ENV}
+
+      - name: Next version information
+        run: |
+          cat <<! >> $GITHUB_STEP_SUMMARY
+          ## Next development version information
+          
+          | Name | Value |
+          | --- | --- |
+          | Iceberg Catalog Migrator development version | ${NEXT_VERSION}           |
+          | \`version.txt\` content    | \`$(cat version.txt)\`    |
+          | Git HEAD                   | \`$(git rev-parse HEAD)\` |
+          !
+
+        # Record the next development iteration in Git
+      - name: Record next development version in Git
+        run: git commit -a -m "[release] next development iteration ${NEXT_VERSION}"
+
+      # Push the 2 git commits and git tag. If this one fails, some other commit was pushed to the
+      # 'main' branch and break the linear history for the Iceberg Catalog Migrator git repo.
+      # The `release-publish.yml` job will run when the release tag `catalog-migrator-x.y.z` has been pushed.
+      - name: Push tag + branch
+        run: |
+          # Push directly using the remote repo URL, which includes the secret so this job can push to the repo
+          UPSTREAM="https://${{ secrets.NESSIE_BUILDER }}@github.com/${GITHUB_REPOSITORY}.git"
+          
+          # Move the default auth settings in ~/.gitconfig out of the way, so the git-push can use the token
+          git config --rename-section http.https://github.com/ http.https://save.github.com/
+          
+          git push --no-verify "${UPSTREAM}" HEAD:${GITHUB_REF} ${GIT_TAG}
+          
+          # Move the default auth settings in ~/.gitconfig back
+          git config --rename-section http.https://save.github.com/ http.https://github.com/
