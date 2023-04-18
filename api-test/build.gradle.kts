@@ -17,6 +17,7 @@
 plugins {
   `java-library`
   `maven-publish`
+  signing
   `build-conventions`
 }
 
