@@ -91,9 +91,7 @@ jobs:
           ./gradlew --no-watch-fs --no-daemon publishToMavenLocal publishToSonatype closeAndReleaseSonatypeStagingRepository -Prelease
           echo "::endgroup::"
 
-          cp cli/build/executable/iceberg-catalog-migrator cli/build/executable/iceberg-catalog-migrator-${RELEASE_VERSION}
-
-          echo "CLI_EXEC=cli/build/executable/iceberg-catalog-migrator-${RELEASE_VERSION}" >> ${GITHUB_ENV}
+          echo "CLI_UBER_JAR=cli/build/libs/iceberg-catalog-migrator-cli-${RELEASE_VERSION}.jar" >> ${GITHUB_ENV}
 
           echo "## Successfully released ${RELEASE_VERSION} to Sonatype" >> $GITHUB_STEP_SUMMARY
 
@@ -119,7 +117,7 @@ jobs:
 
           git log --perl-regexp --author '^(?!.*renovate|.*nessie-release-workflow).*$' --format='format:* %s' ${LAST_TAG}..${GIT_TAG} | (grep -v '^\* \[release\] .*$' || true) > ${DIR}/release-log
 
-          Q_CLI_EXEC="https://github.com/projectnessie/iceberg-catalog-migrator/releases/download/catalog-migrator-${RELEASE_VERSION}/iceberg-catalog-migrator-${RELEASE_VERSION}"
+          Q_CLI_UBER_JAR="https://github.com/projectnessie/iceberg-catalog-migrator/releases/download/catalog-migrator-${RELEASE_VERSION}/iceberg-catalog-migrator-cli-${RELEASE_VERSION}.jar"
           cat <<EOF > ${NOTES_FILE}
           # Iceberg Catalog Migrator ${RELEASE_VERSION} release
 
@@ -127,10 +125,12 @@ jobs:
           * Maven Central: https://search.maven.org/search?q=g:org.projectnessie.iceberg-catalog-migrator+v:${RELEASE_VERSION}
 
           ## Try it
-
-          The attached executable file [\`iceberg-catalog-migrator-${RELEASE_VERSION}\`](${Q_CLI_EXEC}) is an executable jar file.
-          (\`chmod 744 iceberg-catalog-migrator-${RELEASE_VERSION}\` after download.)
-          Can also be run using \`java -jar iceberg-catalog-migrator-${RELEASE_VERSION}\`.
+          
+          The attached [\`iceberg-catalog-migrator-cli-${RELEASE_VERSION}.jar\`](${Q_CLI_UBER_JAR}) is a standalone uber-jar file (recommended to use it on Java 11). Download and run it:
+          \`\`\`
+          wget ${Q_CLI_UBER_JAR}
+          java -jar iceberg-catalog-migrator-cli-${RELEASE_VERSION}.jar
+          \`\`\`
 
           ## Full Changelog (minus renovate commits):
 
@@ -147,4 +147,4 @@ jobs:
           gh release create ${GIT_TAG} \
             --notes-file ${{ env.NOTES_FILE }} \
             --title "Iceberg Catalog Migrator ${RELEASE_VERSION}" \
-            "${CLI_EXEC}"
+            "${CLI_UBER_JAR}"

@@ -145,28 +145,4 @@ val mainClassName = "org.projectnessie.tools.catalog.migration.cli.CatalogMigrat
 
 val shadowJar = tasks.named<ShadowJar>("shadowJar") { isZip64 = true }
 
-val unixExecutable by
-  tasks.registering {
-    group = "build"
-    description = "Generates the Unix executable"
-
-    dependsOn(shadowJar)
-    val dir = buildDir.resolve("executable")
-    val executable = dir.resolve("iceberg-catalog-migrator")
-    inputs.files(shadowJar.get().archiveFile).withPathSensitivity(PathSensitivity.RELATIVE)
-    outputs.files(executable)
-    outputs.cacheIf { false } // very big file
-    doFirst {
-      dir.mkdirs()
-      executable.outputStream().use { out ->
-        projectDir.resolve("src/exec/exec-preamble.sh").inputStream().use { i -> i.transferTo(out) }
-        shadowJar.get().archiveFile.get().asFile.inputStream().use { i -> i.transferTo(out) }
-      }
-      executable.setExecutable(true)
-    }
-  }
-
-shadowJar {
-  manifest { attributes["Main-Class"] = mainClassName }
-  finalizedBy(unixExecutable)
-}
+shadowJar { manifest { attributes["Main-Class"] = mainClassName } }
