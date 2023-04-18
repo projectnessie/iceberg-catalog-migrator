@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Dremio
+ * Copyright (C) 2022 Dremio
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import java.nio.file.Path
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
@@ -29,15 +29,11 @@ import org.gradle.work.DisableCachingByDefault
 class ReleaseSupportPlugin : Plugin<Project> {
   override fun apply(project: Project) {
 
-    project.tasks.register("showVersion") {
+    project.extensions.create("releaseSupport", ReleaseSupport::class.java)
+
+    project.tasks.register<ShowVersionTask>("showVersion") {
       group = "Release Support"
       description = "Show current version"
-
-      doFirst {
-        logger.lifecycle(
-          "Current version is ${VersionTuple.fromFile(versionTxtFile(this.project))}."
-        )
-      }
     }
 
     project.tasks.register<BumpVersionTask>("bumpVersion") {
@@ -47,9 +43,21 @@ class ReleaseSupportPlugin : Plugin<Project> {
     }
   }
 
-  companion object {
-    private fun versionTxtFile(project: Project): Path =
-      project.rootDir.toPath().resolve("./version.txt")
+  open class ReleaseSupport(project: Project) {
+    val versionFile: RegularFileProperty =
+      project.objects
+        .fileProperty()
+        .fileProvider(project.provider { project.rootDir.resolve("./version.txt") })
+  }
+
+  @DisableCachingByDefault(because = "Version information cannot be cached")
+  open class ShowVersionTask : DefaultTask() {
+    @TaskAction
+    fun showVersion() {
+      val versionTxtFile =
+        project.extensions.getByType(ReleaseSupport::class.java).versionFile.get().asFile
+      logger.lifecycle("Current version is ${VersionTuple.fromFile(versionTxtFile.toPath())}.")
+    }
   }
 
   @DisableCachingByDefault(because = "Version bumps cannot be cached")
@@ -70,7 +78,8 @@ class ReleaseSupportPlugin : Plugin<Project> {
 
     @TaskAction
     fun bumpVersion() {
-      val versionFile = versionTxtFile(project)
+      val versionFile =
+        project.extensions.getByType(ReleaseSupport::class.java).versionFile.get().asFile.toPath()
       val currentVersion = VersionTuple.fromFile(versionFile)
 
       logger.lifecycle("Current version is $currentVersion.")
@@ -100,6 +109,7 @@ class ReleaseSupportPlugin : Plugin<Project> {
     }
   }
 
+  @Suppress("EnumEntryName")
   enum class BumpType {
     // lower-case, used as command line option values
     none,
