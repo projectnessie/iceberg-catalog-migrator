@@ -1,7 +1,7 @@
 # Dependencies needed by buildSrc/
 
 [versions]
-errorpronePlugin = "3.0.1"
+errorpronePlugin = "3.1.0"
 ideaExt = "1.1.7"
 jandexPlugin = "1.87"
 shadowPlugin = "8.1.1"
