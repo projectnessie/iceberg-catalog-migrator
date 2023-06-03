@@ -17,7 +17,7 @@ logback = "1.4.5"
 logcaptor = "2.9.0"
 nessie = "0.57.0"
 nessieRunner = "0.30.6"
-picocli = "4.7.3"
+picocli = "4.7.4"
 shadowPlugin = "8.1.1"
 slf4j = "1.7.36"
 
