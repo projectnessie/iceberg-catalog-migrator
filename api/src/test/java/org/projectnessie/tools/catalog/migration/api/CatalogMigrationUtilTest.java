@@ -129,6 +129,7 @@ public class CatalogMigrationUtilTest {
     properties.put("warehouse", tempDir.toAbsolutePath().toString());
     properties.put("ref", "main");
     properties.put("uri", "http://localhost:19120/api/v1");
+    properties.put("enable-api-compatibility-check", "false");
 
     Catalog catalog =
         CatalogMigrationUtil.buildCatalog(
