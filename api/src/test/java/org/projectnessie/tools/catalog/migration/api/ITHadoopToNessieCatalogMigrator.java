@@ -102,10 +102,15 @@ public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator
         namespaceList.get(5)); // try creating "a.c"
 
     // should create all the levels of missing namespaces on target catalog.
-    // Ideally, listNamespaces() should return top level namespaces. But due to bug in Nessie code,
-    // It returns all the namespaces. Should be fixed by https://github.com/apache/iceberg/pull/7146
-    Assertions.assertThat(((SupportsNamespaces) targetCatalog).listNamespaces())
-        .containsAll(namespaceList);
+    Assertions.assertThat(((SupportsNamespaces) targetCatalog).listNamespaces()).contains(NS_A);
+    Assertions.assertThat(((SupportsNamespaces) targetCatalog).listNamespaces(NS_A))
+        .contains(NS_A_B, NS_A_C);
+    Assertions.assertThat(((SupportsNamespaces) targetCatalog).listNamespaces(NS_A_B))
+        .contains(NS_A_B_C);
+    Assertions.assertThat(((SupportsNamespaces) targetCatalog).listNamespaces(NS_A_B_C))
+        .contains(NS_A_B_C_D);
+    Assertions.assertThat(((SupportsNamespaces) targetCatalog).listNamespaces(NS_A_B_C_D))
+        .contains(NS_A_B_C_D_E);
 
     namespaceList.forEach(
         namespace -> ((SupportsNamespaces) sourceCatalog).createNamespace(namespace));
