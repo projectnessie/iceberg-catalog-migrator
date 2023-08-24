@@ -113,7 +113,7 @@ Note: Options for register command is exactly same as migrate command.
 # Sample Inputs
 ## Bulk migrating all the tables from Hadoop catalog to Nessie catalog (main branch)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
@@ -134,7 +134,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.dremio.cloud/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate selected tables (t1,t2 in namespace foo) from Arctic catalog (main branch) to Hadoop catalog.
@@ -149,7 +149,7 @@ export AWS_S3_ENDPOINT=xxxxxxx
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type NESSIE \
---source-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT \
+--source-catalog-properties uri=https://nessie.dremio.cloud/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT \
 --target-catalog-type HADOOP \
 --identifiers foo.t1,foo.t2
 ```
@@ -160,7 +160,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type GLUE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.dremio.cloud/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from HIVE catalog to Arctic catalog (main branch)
@@ -169,7 +169,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.dremio.cloud/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from DYNAMODB catalog to Arctic catalog (main branch)
@@ -178,7 +178,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type DYNAMODB \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.dremio.cloud/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=s3a://some-other-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 ## Migrate all tables from JDBC catalog to Arctic catalog (main branch)
@@ -187,7 +187,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type JDBC \
 --source-catalog-properties warehouse=/tmp/warehouseJdbc,jdbc.user=root,jdbc.password=pass,uri=jdbc:mysql://localhost:3306/db1,name=catalogName \
 --target-catalog-type NESSIE \
---target-catalog-properties uri=https://nessie.test1.dremio.site/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
+--target-catalog-properties uri=https://nessie.dremio.cloud/v1/repositories/612a4560-1178-493f-9c14-ab6b33dc31c5,ref=main,warehouse=/tmp/nessiewarehouse,authentication.type=BEARER,authentication.token=$PAT
 ```
 
 # Scenarios
@@ -216,7 +216,7 @@ which can be used for actual migration using the `--identifiers-from-file` optio
 
 Sample input:
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
@@ -268,7 +268,7 @@ and also log any table level failures, if present.
 
 Sample input:
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
@@ -312,7 +312,7 @@ Users can provide the selective list of identifiers to migrate using any of thes
 
 Sample input: (only migrate tables that starts with "foo.")
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
@@ -323,7 +323,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 Sample input: (migrate all tables in the file ids.txt where each entry is delimited by newline)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
@@ -333,7 +333,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 Sample input: (migrate only two tables foo.tbl1, foo.tbl2)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
