@@ -268,7 +268,7 @@ and also log any table level failures, if present.
 
 Sample input:
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
+java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE  \
@@ -310,7 +310,7 @@ To recover, users can manually remove these tables from the source catalog or at
 Users can provide the selective list of identifiers to migrate using any of these 3 options
 `--identifiers`, `--identifiers-from-file`, `--identifier-regex` and it can be used along with the dry-run option too.
 
-Sample input: (only register tables that starts with "foo.")
+Sample input: (only migrate tables that starts with "foo.")
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type HIVE \
@@ -321,7 +321,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 ```
 
-Sample input: (register all tables in the file ids.txt where each entry is delimited by newline)
+Sample input: (migrate all tables in the file ids.txt where each entry is delimited by newline)
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type HIVE \
@@ -331,7 +331,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --identifiers-from-file ids.txt
 ```
 
-Sample input: (register only two tables foo.tbl1, foo.tbl2)
+Sample input: (migrate only two tables foo.tbl1, foo.tbl2)
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 --source-catalog-type HIVE \
