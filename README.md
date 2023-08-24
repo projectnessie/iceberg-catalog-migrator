@@ -111,7 +111,7 @@ Identifier options:
 Note: Options for register command is exactly same as migrate command.
 
 # Sample Inputs
-## Bulk migrating all the tables from Hadoop catalog to Nessie catalog (main branch)
+## Bulk registering all the tables from Hadoop catalog to Nessie catalog (main branch)
 ```shell
 java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
 --source-catalog-type HADOOP \
