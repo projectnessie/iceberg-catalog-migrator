@@ -1,7 +1,7 @@
 [versions]
 assertj = "3.24.2"
 aws = "2.20.18" # this is in mapping with iceberg repo.
-checkstyle = "10.12.3"
+checkstyle = "10.12.4"
 errorprone = "2.22.0"
 errorproneSlf4j = "0.1.20"
 googleJavaFormat = "1.17.0"
