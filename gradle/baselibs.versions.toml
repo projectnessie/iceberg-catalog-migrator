@@ -5,7 +5,7 @@ errorpronePlugin = "3.1.0"
 ideaExt = "1.1.7"
 jandexPlugin = "1.90"
 shadowPlugin = "8.1.1"
-spotlessPlugin = "6.23.2"
+spotlessPlugin = "6.23.3"
 
 [libraries]
 errorprone = { module = "net.ltgt.gradle:gradle-errorprone-plugin", version.ref = "errorpronePlugin" }
