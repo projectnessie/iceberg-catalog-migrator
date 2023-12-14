@@ -30,7 +30,7 @@ jobs:
           arguments: --rerun-tasks assemble ${{ env.ADDITIONAL_GRADLE_OPTS }} check publishToMavenLocal --scan
 
       - name: Capture test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: test-results
