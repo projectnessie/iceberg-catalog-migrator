@@ -1,5 +1,5 @@
 [versions]
-assertj = "3.25.0"
+assertj = "3.25.1"
 aws = "2.20.18" # this is in mapping with iceberg repo.
 checkstyle = "10.12.5"
 errorprone = "2.24.0"
