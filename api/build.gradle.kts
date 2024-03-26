@@ -89,4 +89,7 @@ dependencies {
   )
 }
 
-nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }
+nessieQuarkusApp {
+  javaVersion.set(17)
+  includeTask(tasks.named<Test>("intTest"))
+}

@@ -128,7 +128,10 @@ dependencies {
   )
 }
 
-nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }
+nessieQuarkusApp {
+  javaVersion.set(17)
+  includeTask(tasks.named<Test>("intTest"))
+}
 
 tasks.named<Test>("test") { systemProperty("expectedCLIVersion", project.version) }
 
