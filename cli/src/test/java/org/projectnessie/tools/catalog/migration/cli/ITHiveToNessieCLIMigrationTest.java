@@ -18,31 +18,33 @@ package org.projectnessie.tools.catalog.migration.cli;
 import java.util.Collections;
 import java.util.stream.IntStream;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.hive.HiveMetastoreExtension;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
-import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHiveToNessieCLIMigrationTest extends AbstractCLIMigrationTest {
 
+  @RegisterExtension
+  public static final HiveMetastoreExtension HIVE_METASTORE_EXTENSION =
+      HiveMetastoreExtension.builder().build();
+
   @BeforeAll
   protected static void setup() throws Exception {
-    HiveMetaStoreRunner.startMetastore();
-
     initializeSourceCatalog(
         CatalogMigrationUtil.CatalogType.HIVE,
         Collections.singletonMap(
-            "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
+            "uri", HIVE_METASTORE_EXTENSION.hiveConf().get("hive.metastore.uris")));
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
   }
 
   @AfterAll
   protected static void tearDown() throws Exception {
     dropNamespaces();
-    HiveMetaStoreRunner.stopMetastore();
   }
 
   @ParameterizedTest
