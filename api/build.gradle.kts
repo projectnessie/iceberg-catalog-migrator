@@ -84,9 +84,15 @@ dependencies {
   }
   testImplementation("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
 
-  nessieQuarkusServer(
-    "org.projectnessie.nessie:nessie-quarkus:${libs.versions.nessie.get()}:runner"
-  )
+  val currentJavaVersion = JavaVersion.current().majorVersion.toInt()
+  if (currentJavaVersion >= 17) {
+    nessieQuarkusServer(
+      "org.projectnessie.nessie:nessie-quarkus:${libs.versions.nessie.get()}:runner"
+    )
+  } else {
+    // use older version 0.74.0 which can run on JDK 11
+    nessieQuarkusServer("org.projectnessie.nessie:nessie-quarkus:0.74.0:runner")
+  }
 }
 
 nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }
