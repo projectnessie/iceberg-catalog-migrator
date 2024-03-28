@@ -52,13 +52,13 @@ jobs:
           java-version: 11
 
       - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.RELEASE_FROM }}
           fetch-depth: '0'
 
       - name: Bump to release version
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
         with:
           cache-disabled: true
           arguments: :bumpVersion --bumpType ${{ env.BUMP_TYPE }} --bumpToRelease
@@ -124,7 +124,7 @@ jobs:
 
       # Bump to the next patch version as a SNAPSHOT
       - name: Bump to next patch version
-        uses: gradle/gradle-build-action@v2
+        uses: gradle/actions/setup-gradle@v3
         with:
           arguments: :bumpVersion --bumpType patch
 
