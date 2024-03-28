@@ -28,14 +28,11 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator {
 
   @BeforeAll
   protected static void setup() throws Exception {
-    HiveMetaStoreRunner.startMetastore();
-
     initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
     initializeTargetCatalog(CatalogMigrationUtil.CatalogType.NESSIE, Collections.emptyMap());
   }
@@ -43,7 +40,6 @@ public class ITHadoopToNessieCatalogMigrator extends AbstractTestCatalogMigrator
   @AfterAll
   protected static void tearDown() throws Exception {
     dropNamespaces();
-    HiveMetaStoreRunner.stopMetastore();
   }
 
   @Test
