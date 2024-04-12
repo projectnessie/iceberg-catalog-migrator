@@ -19,7 +19,7 @@ nessie = "0.60.1"
 nessieRunner = "0.32.0"
 picocli = "4.7.5"
 shadowPlugin = "8.1.1"
-slf4j = "1.7.36"
+slf4j = "2.0.13"
 
 [libraries]
 assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
