@@ -26,7 +26,7 @@ Need to have Java installed in your machine(JDK11 is recommended) to use this CL
 
 Below is the CLI syntax:
 ```
-$ java -jar iceberg-catalog-migrator-cli-0.2.0.jar -h        
+$ java -jar iceberg-catalog-migrator-cli-0.3.0.jar -h        
 Usage: iceberg-catalog-migrator [-hV] [COMMAND]
   -h, --help      Show this help message and exit.
   -V, --version   Print version information and exit.
@@ -37,7 +37,7 @@ Commands:
 ```
 
 ```
-$ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate -h
+$ java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate -h
 Usage: iceberg-catalog-migrator migrate [-hV] [--disable-safety-prompts] [--dry-run] [--stacktrace] [--output-dir=<outputDirPath>]
                                         (--source-catalog-type=<type> --source-catalog-properties=<String=String>[,<String=String>...]
                                         [--source-catalog-properties=<String=String>[,<String=String>...]]...
@@ -113,7 +113,7 @@ Note: Options for register command is exactly same as migrate command.
 # Sample Inputs
 ## Bulk registering all the tables from Hadoop catalog to Nessie catalog (main branch)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
@@ -130,7 +130,7 @@ export AWS_S3_ENDPOINT=xxxxxxx
 ```
 
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar register \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar register \
 --source-catalog-type HADOOP \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE \
@@ -147,7 +147,7 @@ export AWS_S3_ENDPOINT=xxxxxxx
 ```
 
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type NESSIE \
 --source-catalog-properties uri=https://nessie.dremio.cloud/v1/repositories/8158e68a-5046-42c6-a7e4-c920d9ae2475,ref=main,warehouse=/tmp/warehouse,authentication.type=BEARER,authentication.token=$PAT \
 --target-catalog-type HADOOP \
@@ -156,7 +156,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 ## Migrate all tables from GLUE catalog to Arctic catalog (main branch)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type GLUE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
@@ -165,7 +165,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 ## Migrate all tables from HIVE catalog to Arctic catalog (main branch)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE \
@@ -174,7 +174,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 ## Migrate all tables from DYNAMODB catalog to Arctic catalog (main branch)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type DYNAMODB \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO \
 --target-catalog-type NESSIE \
@@ -183,7 +183,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 ## Migrate all tables from JDBC catalog to Arctic catalog (main branch)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \ 
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \ 
 --source-catalog-type JDBC \
 --source-catalog-properties warehouse=/tmp/warehouseJdbc,jdbc.user=root,jdbc.password=pass,uri=jdbc:mysql://localhost:3306/db1,name=catalogName \
 --target-catalog-type NESSIE \
@@ -200,7 +200,7 @@ Users can use a new catalog by creating a fresh table to test the new catalog's 
 
 Sample input:
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE  \
@@ -216,7 +216,7 @@ The list of table identifiers in `dry_run.txt` can be altered (if needed) and re
 
 Sample input:
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE  \
@@ -268,7 +268,7 @@ and also log any table level failures, if present.
 
 Sample input:
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE  \
@@ -312,7 +312,7 @@ Users can provide the selective list of identifiers to migrate using any of thes
 
 Sample input: (only migrate tables that starts with "foo.")
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE  \
@@ -323,7 +323,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 Sample input: (migrate all tables in the file ids.txt where each entry is delimited by newline)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=/tmp/warehouse,type=hadoop \
 --target-catalog-type NESSIE  \
@@ -333,7 +333,7 @@ java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
 
 Sample input: (migrate only two tables foo.tbl1, foo.tbl2)
 ```shell
-java -jar iceberg-catalog-migrator-cli-0.2.0.jar migrate \
+java -jar iceberg-catalog-migrator-cli-0.3.0.jar migrate \
 --source-catalog-type HIVE \
 --source-catalog-properties warehouse=s3a://some-bucket/wh/,io-impl=org.apache.iceberg.aws.s3.S3FileIO,uri=thrift://localhost:9083 \
 --target-catalog-type NESSIE  \
