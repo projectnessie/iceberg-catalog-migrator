@@ -16,27 +16,30 @@
 package org.projectnessie.tools.catalog.migration.cli;
 
 import java.util.Collections;
+import org.apache.iceberg.hive.HiveMetastoreExtension;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.projectnessie.tools.catalog.migration.api.CatalogMigrationUtil;
-import org.projectnessie.tools.catalog.migration.api.test.HiveMetaStoreRunner;
 
 public class ITHadoopToHiveCLIMigrationTest extends AbstractCLIMigrationTest {
 
+  @RegisterExtension
+  public static final HiveMetastoreExtension HIVE_METASTORE_EXTENSION =
+      HiveMetastoreExtension.builder().build();
+
   @BeforeAll
   protected static void setup() throws Exception {
-    HiveMetaStoreRunner.startMetastore();
 
     initializeSourceCatalog(CatalogMigrationUtil.CatalogType.HADOOP, Collections.emptyMap());
     initializeTargetCatalog(
         CatalogMigrationUtil.CatalogType.HIVE,
         Collections.singletonMap(
-            "uri", HiveMetaStoreRunner.hiveCatalog().getConf().get("hive.metastore.uris")));
+            "uri", HIVE_METASTORE_EXTENSION.hiveConf().get("hive.metastore.uris")));
   }
 
   @AfterAll
   protected static void tearDown() throws Exception {
     dropNamespaces();
-    HiveMetaStoreRunner.stopMetastore();
   }
 }
