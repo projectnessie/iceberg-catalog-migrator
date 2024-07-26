@@ -1,6 +1,6 @@
 [versions]
 assertj = "3.26.3"
-aws = "2.24.5" # this is in mapping with iceberg repo.
+aws = "2.26.20" # this is in mapping with iceberg repo.
 checkstyle = "10.17.0"
 errorprone = "2.29.2"
 errorproneSlf4j = "0.1.25"
@@ -15,7 +15,7 @@ jandex = "3.1.8"
 junit = "5.10.3"
 logback = "1.5.6"
 logcaptor = "2.9.3"
-nessie = "0.82.0"
+nessie = "0.92.1"
 nessieRunner = "0.32.2"
 picocli = "4.7.6"
 shadowPlugin = "8.1.1"
