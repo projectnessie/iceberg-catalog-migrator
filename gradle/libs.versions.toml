@@ -1,6 +1,6 @@
 [versions]
 assertj = "3.26.3"
-aws = "2.24.5" # this is in mapping with iceberg repo.
+aws = "2.26.20" # this is in mapping with iceberg repo.
 checkstyle = "10.17.0"
 errorprone = "2.29.2"
 errorproneSlf4j = "0.1.25"
@@ -8,14 +8,14 @@ googleJavaFormat = "1.23.0"
 guava = "33.2.1-jre"
 hadoop = "2.7.3" # this is in mapping with iceberg repo.
 hive = "2.3.9" # this is in mapping with iceberg repo.
-iceberg = "1.5.2"
+iceberg = "1.6.0"
 immutables = "2.10.1"
 jacoco = "0.8.12"
 jandex = "3.2.1"
 junit = "5.10.3"
 logback = "1.5.6"
 logcaptor = "2.9.3"
-nessie = "0.82.0"
+nessie = "0.92.1"
 nessieRunner = "0.32.2"
 picocli = "4.7.6"
 shadowPlugin = "8.1.1"
