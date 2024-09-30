@@ -32,7 +32,7 @@ on:
 jobs:
   publish-release:
     name: Publish release
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     if: github.repository_owner == 'projectnessie'
 
     steps:
