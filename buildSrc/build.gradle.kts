@@ -34,10 +34,10 @@ dependencies {
 }
 
 java {
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+  sourceCompatibility = JavaVersion.VERSION_21
+  targetCompatibility = JavaVersion.VERSION_21
 }
 
-kotlinDslPluginOptions { jvmTarget.set(JavaVersion.VERSION_11.toString()) }
+kotlinDslPluginOptions { jvmTarget.set(JavaVersion.VERSION_21.toString()) }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }
