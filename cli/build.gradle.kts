@@ -24,7 +24,7 @@ plugins {
   `build-conventions`
 }
 
-java.sourceCompatibility = JavaVersion.VERSION_1_8
+java.sourceCompatibility = JavaVersion.VERSION_21
 
 applyShadowJar()
 
@@ -128,10 +128,7 @@ dependencies {
   )
 }
 
-nessieQuarkusApp {
-  javaVersion.set(17)
-  includeTask(tasks.named<Test>("intTest"))
-}
+nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }
 
 tasks.named<Test>("test") { systemProperty("expectedCLIVersion", project.version) }
 
@@ -149,3 +146,5 @@ val mainClassName = "org.projectnessie.tools.catalog.migration.cli.CatalogMigrat
 val shadowJar = tasks.named<ShadowJar>("shadowJar") { isZip64 = true }
 
 shadowJar { manifest { attributes["Main-Class"] = mainClassName } }
+
+tasks.withType<Test>().configureEach { systemProperty("java.security.manager", "allow") }

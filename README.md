@@ -22,7 +22,7 @@ to prevent missing updates, data loss and table corruption in the target catalog
 In-progress commits may not be properly transferred and could compromise the integrity of your data.**
 
 # Iceberg-catalog-migrator
-Need to have Java installed in your machine(JDK11 is recommended) to use this CLI tool.
+Need to have Java installed in your machine (Java 21 is recommended and the minimum Java version) to use this CLI tool.
 
 Below is the CLI syntax:
 ```

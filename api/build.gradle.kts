@@ -89,7 +89,6 @@ dependencies {
   )
 }
 
-nessieQuarkusApp {
-  javaVersion.set(17)
-  includeTask(tasks.named<Test>("intTest"))
-}
+nessieQuarkusApp { includeTask(tasks.named<Test>("intTest")) }
+
+tasks.withType<Test>().configureEach { systemProperty("java.security.manager", "allow") }

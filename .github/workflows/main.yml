@@ -12,7 +12,7 @@ jobs:
     strategy:
       max-parallel: 4
       matrix:
-        java-version: [11, 17, 18]
+        java-version: [21, 23]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,18 +22,14 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          # JDK 17 is needed for `nessieQuarkusApp` to run the Nessie server.
           java-version: |
-            17
-            ${{ matrix.java-version != '17' && matrix.java-version || '' }}
+            21
+            ${{ matrix.java-version != '21' && matrix.java-version || '' }}
 
       - name: Build with Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           arguments: --rerun-tasks assemble ${{ env.ADDITIONAL_GRADLE_OPTS }} check publishToMavenLocal --scan
-        # since the `nessieQuarkusApp` gradle plugin expects the below variable
-        env:
-          JDK17_HOME: ${{ env.JAVA_HOME_17_X64 }}
 
       - name: Capture test results
         uses: actions/upload-artifact@v4

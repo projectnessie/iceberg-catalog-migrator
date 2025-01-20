@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.JavaPlugin
@@ -47,6 +46,7 @@ fun Project.configureJava() {
   tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.compilerArgs.add("-parameters")
+    options.release.set(21)
 
     // Required to enable incremental compilation w/ immutables, see
     // https://github.com/immutables/immutables/pull/858 and
@@ -64,8 +64,6 @@ fun Project.configureJava() {
     configure<JavaPluginExtension> {
       withJavadocJar()
       withSourcesJar()
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
     }
   }
 }
