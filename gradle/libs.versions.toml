@@ -2,7 +2,7 @@
 assertj = "3.27.3"
 aws = "2.30.2" # this is in mapping with iceberg repo.
 checkstyle = "10.21.1"
-errorprone = "2.31.0"
+errorprone = "2.36.0"
 errorproneSlf4j = "0.1.28"
 googleJavaFormat = "1.24.0"
 guava = "33.4.0-jre"
