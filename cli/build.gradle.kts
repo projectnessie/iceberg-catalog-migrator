@@ -140,7 +140,7 @@ val processResources =
     inputs.property("projectVersion", project.version)
     filter(
       org.apache.tools.ant.filters.ReplaceTokens::class,
-      mapOf("tokens" to mapOf("projectVersion" to project.version))
+      mapOf("tokens" to mapOf("projectVersion" to project.version)),
     )
   }
 

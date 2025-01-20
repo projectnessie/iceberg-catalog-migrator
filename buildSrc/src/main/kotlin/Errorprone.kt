@@ -67,11 +67,11 @@ fun Project.configureErrorprone() {
         dependencies {
           add(
             "errorprone",
-            "com.google.errorprone:error_prone_core:${libsRequiredVersion("errorprone")}"
+            "com.google.errorprone:error_prone_core:${libsRequiredVersion("errorprone")}",
           )
           add(
             "errorprone",
-            "jp.skypencil.errorprone.slf4j:errorprone-slf4j:${libsRequiredVersion("errorproneSlf4j")}"
+            "jp.skypencil.errorprone.slf4j:errorprone-slf4j:${libsRequiredVersion("errorproneSlf4j")}",
           )
         }
       }
