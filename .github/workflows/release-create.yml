@@ -58,7 +58,7 @@ jobs:
           fetch-depth: '0'
 
       - name: Bump to release version
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
           arguments: :bumpVersion --bumpType ${{ env.BUMP_TYPE }} --bumpToRelease
@@ -124,7 +124,7 @@ jobs:
 
       # Bump to the next patch version as a SNAPSHOT
       - name: Bump to next patch version
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           arguments: :bumpVersion --bumpType patch
 

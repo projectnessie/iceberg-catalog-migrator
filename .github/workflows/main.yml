@@ -27,7 +27,7 @@ jobs:
             ${{ matrix.java-version != '21' && matrix.java-version || '' }}
 
       - name: Build with Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
         with:
           arguments: --rerun-tasks assemble ${{ env.ADDITIONAL_GRADLE_OPTS }} check publishToMavenLocal --scan
 
