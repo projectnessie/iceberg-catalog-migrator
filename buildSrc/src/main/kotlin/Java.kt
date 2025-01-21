@@ -19,12 +19,14 @@ import org.gradle.api.file.DuplicatesStrategy
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.tasks.bundling.Jar
+import org.gradle.api.tasks.compile.AbstractCompile
 import org.gradle.api.tasks.compile.JavaCompile
 import org.gradle.api.tasks.javadoc.Javadoc
 import org.gradle.external.javadoc.CoreJavadocOptions
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.repositories
 import org.gradle.kotlin.dsl.withType
+import org.gradle.language.jvm.tasks.ProcessResources
 
 fun Project.configureJava() {
   tasks.withType<Jar>().configureEach {
@@ -65,5 +67,14 @@ fun Project.configureJava() {
       withJavadocJar()
       withSourcesJar()
     }
+  }
+
+  tasks.register("compileAll").configure {
+    group = "build"
+    description = "Runs all compilation and jar tasks"
+    dependsOn(
+      tasks.withType(AbstractCompile::class.java),
+      tasks.withType(ProcessResources::class.java),
+    )
   }
 }
