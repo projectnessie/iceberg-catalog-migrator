@@ -2,7 +2,7 @@
 
 [versions]
 errorpronePlugin = "4.1.0"
-ideaExt = "1.1.9"
+ideaExt = "1.1.10"
 jandexPlugin = "1.90"
 shadowPlugin = "8.1.1"
 spotlessPlugin = "7.0.2"
