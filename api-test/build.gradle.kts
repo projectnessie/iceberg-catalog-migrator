@@ -31,6 +31,7 @@ dependencies {
     exclude("commons-beanutils")
   }
   implementation(libs.iceberg.spark.runtime)
-  implementation(libs.junit.jupiter.api)
+  implementation(platform(libs.junit.bom))
+  implementation("org.junit.jupiter:junit-jupiter-api")
   implementation("org.apache.iceberg:iceberg-hive-metastore:${libs.versions.iceberg.get()}:tests")
 }
