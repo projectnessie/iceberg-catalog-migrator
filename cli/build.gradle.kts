@@ -78,9 +78,11 @@ dependencies {
   }
   runtimeOnly("org.apache.hadoop:hadoop-mapreduce-client-core:${libs.versions.hadoop.get()}")
 
-  testImplementation(libs.junit.jupiter.params)
-  testImplementation(libs.junit.jupiter.api)
-  testImplementation(libs.junit.jupiter.engine)
+  testImplementation(platform(libs.junit.bom))
+  testImplementation("org.junit.jupiter:junit-jupiter-params")
+  testImplementation("org.junit.jupiter:junit-jupiter-api")
+  testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
   testImplementation(libs.assertj)
   testImplementation(libs.logcaptor)
 
